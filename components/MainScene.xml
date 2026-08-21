@@ -26,7 +26,16 @@
       <Label id="movieCounterLabel" translation="[400, 30]" size="20" color="0xAAAAAAFF" />
       <Label text="Usa el menú (Izquierda) para navegar" translation="[790, 30]" size="20" color="0xE50914FF" bold="true" />
 
-      <PosterGrid id="movieGrid" translation="[80, 80]" basePosterSize="[185, 278]" itemSpacing="[30, 25]" numColumns="5" numRows="2" wrap="false" />
+      <MarkupGrid
+          id="movieGrid"
+          translation="[80, 80]"
+          itemComponentName="MovieItem"
+          itemSize="[185, 300]"
+          itemSpacing="[28, 28]"
+          numColumns="5"
+          numRows="2"
+          drawFocusFeedback="false"
+          focusBitmapBlendColor="0x00000000" />
 
       <Group id="countryGroup" visible="false" translation="[80, 100]">
           <Label text="Selecciona un País:" size="30" color="0xFFFFFFFF" bold="true" />
@@ -35,7 +44,16 @@
 
       <Group id="searchGroup" visible="false" translation="[80, 100]">
           <CustomKeyboard id="searchKeyboard" translation="[0, 0]" />
-          <PosterGrid id="searchResultsGrid" translation="[460, 0]" basePosterSize="[160, 240]" itemSpacing="[20, 20]" numColumns="3" numRows="2" wrap="false" />
+          <MarkupGrid
+              id="searchResultsGrid"
+              translation="[460, 0]"
+              itemComponentName="MovieItem"
+              itemSize="[160, 260]"
+              itemSpacing="[20, 20]"
+              numColumns="3"
+              numRows="2"
+              drawFocusFeedback="false"
+              focusBitmapBlendColor="0x00000000" />
       </Group>
 
       <Rectangle width="1280" height="60" color="0x111111FF" translation="[0, 660]">

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="MovieItem" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContentChange" />
+    <field id="focusPercent" type="float" onChange="onFocusChange" />
+  </interface>
+
+  <children>
+    <!-- Fondo oscuro mientras carga -->
+    <Rectangle
+      id="bg"
+      width="185"
+      height="278"
+      color="0x1A1A1AFF" />
+
+    <!-- Sombra -->
+    <Rectangle
+      id="shadow"
+      width="185"
+      height="278"
+      color="0x000000AA"
+      translation="[6, 8]"
+      opacity="0" />
+
+    <Group id="posterGroup" scale="[1.0, 1.0]">
+      <Poster
+        id="poster"
+        width="185"
+        height="278"
+        loadDisplayMode="scaleToFill"
+        loadSync="false" />
+
+      <!-- Borde de focus -->
+      <Rectangle
+        id="focusBorder"
+        width="185"
+        height="278"
+        color="0x00000000"
+        opacity="0">
+        <Rectangle width="185" height="3" color="0xE50914FF" translation="[0, 0]" />
+        <Rectangle width="185" height="3" color="0xE50914FF" translation="[0, 275]" />
+        <Rectangle width="3" height="278" color="0xE50914FF" translation="[0, 0]" />
+        <Rectangle width="3" height="278" color="0xE50914FF" translation="[182, 0]" />
+      </Rectangle>
+    </Group>
+  </children>
+
+  <script type="text/brightscript" uri="pkg:/components/MovieItem.brs" />
+</component>
