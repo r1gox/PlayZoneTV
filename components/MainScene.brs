@@ -119,18 +119,50 @@ end sub
 
 sub onMoviesRetrieved()
     res = m.apiTask.response
+
     if res <> invalid and res.movies <> invalid
+
         content = CreateObject("roSGNode", "ContentNode")
+
         for each m_item in res.movies
+
             item = content.CreateChild("ContentNode")
-            item.title = m_item.title
-            item.hdPosterUrl = getPosterUrl(m_item)
-            item.description = m_item.url
+
+            item.title = ""
+
+            if m_item.title <> invalid
+                item.title = m_item.title
+            end if
+
+            posterUrl = getPosterUrl(m_item)
+
+            if posterUrl <> ""
+                item.hdPosterUrl = posterUrl
+            end if
+
+            if m_item.url <> invalid
+                item.description = m_item.url
+            end if
+
         end for
+
         m.movieGrid.content = content
         m.movieGrid.setFocus(true)
-        m.movieCounterLabel.text = "(" + res.totalCount.toStr() + " películas)"
-        m.pageIndicator.text = "Página " + m.currentPage.toStr() + " de 16"
+
+        if res.totalCount <> invalid
+            m.movieCounterLabel.text = "(" + res.totalCount.toStr() + " películas)"
+        else
+            m.movieCounterLabel.text = ""
+        end if
+
+        totalPages = 16
+
+        if res.totalPages <> invalid
+            totalPages = res.totalPages
+        end if
+
+        m.pageIndicator.text = "Página " + m.currentPage.toStr() + " de " + totalPages.toStr()
+
     end if
 end sub
 
@@ -334,19 +366,64 @@ sub onDetailsRetrieved()
 end sub
 
 sub onPlayPressed()
-    if m.currentStreams <> invalid and m.currentStreams.count() > 0
-        playVideo(m.currentStreams[0].url)
+
+    if m.currentStreams = invalid
+        return
     end if
+
+    if m.currentStreams.count() = 0
+        return
+    end if
+
+    stream = m.currentStreams[0]
+
+    if stream = invalid
+        return
+    end if
+
+    if stream.url = invalid or stream.url = ""
+        return
+    end if
+
+    streamType = "hls"
+
+    if stream.type <> invalid and stream.type <> ""
+        streamType = LCase(stream.type)
+    end if
+
+    playVideo(stream.url, streamType)
+
 end sub
 
-sub playVideo(url as String)
+
+sub playVideo(url as String, streamType = "hls")
+
+    if url = invalid or url = ""
+        return
+    end if
+
     videoContent = CreateObject("roSGNode", "ContentNode")
+
     videoContent.url = url
-    videoContent.streamFormat = "hls"
+
+    if LCase(streamType) = "hls"
+        videoContent.streamFormat = "hls"
+
+    else if LCase(streamType) = "mp4"
+        videoContent.streamFormat = "mp4"
+
+    else
+        ' La API normalmente devuelve HLS.
+        videoContent.streamFormat = "hls"
+    end if
+
     m.videoPlayer.content = videoContent
     m.videoPlayer.visible = true
-    m.videoPlayer.control = "play"
     m.videoPlayer.setFocus(true)
+
+    ' Iniciar después de asignar el contenido.
+    m.videoPlayer.control = "play"
+
 end sub
 
 sub toggleMenu(open as Boolean)
@@ -410,14 +487,58 @@ end function
 ' (por ejemplo "image" en el listado y "poster" en el detalle). Esta función
 ' prueba los nombres más comunes hasta encontrar uno con datos.
 function getPosterUrl(data as object) as string
-    posibles = ["image", "poster", "img", "thumbnail", "cover", "poster_url", "imageUrl", "thumb"]
+
+    if data = invalid
+        return ""
+    end if
+
+    posibles = [
+        "poster",
+        "image",
+        "img",
+        "thumbnail",
+        "cover",
+        "poster_url",
+        "imageUrl",
+        "thumb"
+    ]
+
     for each campo in posibles
+
         if data.DoesExist(campo)
+
             valor = data[campo]
+
             if valor <> invalid and valor <> ""
+
+                valor = valor.toStr()
+
+                ' Si ya viene mediante nuestro proxy,
+                ' utilizarlo directamente.
+                if instr(1, LCase(valor), "/proxy?url=") > 0
+                    return valor
+                end if
+
+                ' Las imágenes externas de zonaaps se pasan
+                ' por el proxy para mejorar compatibilidad.
+                if instr(1, LCase(valor), "zonaaps.com") > 0
+                    return "https://zonaapp.ikkihkurogane.workers.dev/proxy?url=" + urlEncode(valor)
+                end if
+
                 return valor
+
             end if
+
         end if
+
     end for
+
     return ""
+
 end function
+
+function urlEncode(value as String) as String
+    transfer = CreateObject("roUrlTransfer")
+    return transfer.Escape(value)
+end function
+
