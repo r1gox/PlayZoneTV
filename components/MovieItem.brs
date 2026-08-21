@@ -10,13 +10,25 @@ sub onContentChange()
     item = m.top.itemContent
     if item = invalid then return
 
-    ' Limpiamos primero
+    ' Limpiar imagen anterior
     m.poster.uri = ""
 
+    posterUrl = ""
+
+    ' Intentar HD
     if item.hdPosterUrl <> invalid and item.hdPosterUrl <> ""
-        m.poster.uri = item.hdPosterUrl
+        posterUrl = item.hdPosterUrl
+
+    ' Fallback SD
     else if item.SDPosterUrl <> invalid and item.SDPosterUrl <> ""
-        m.poster.uri = item.SDPosterUrl
+        posterUrl = item.SDPosterUrl
+    end if
+
+    if posterUrl <> ""
+        m.poster.uri = posterUrl
+        m.bg.visible = false
+    else
+        m.bg.visible = true
     end if
 end sub
 
