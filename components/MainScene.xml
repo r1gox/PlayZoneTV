@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="MainScene" extends="Scene">
+  <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
+  <children>
+    <Rectangle width="1280" height="720" color="0x050505FF" />
+
+    <!-- 1. PORTAL DE INICIO -->
+    <Group id="portalGroup" visible="true">
+        <Label text="PlayZoneTV" size="60" color="0xE50914FF" bold="true" horizAlign="center" width="1280" translation="[0, 80]" />
+        <Label text="Entretenimiento sin límites" size="22" color="0x777777FF" horizAlign="center" width="1280" translation="[0, 150]" />
+
+        <MarkupGrid
+            id="portalGrid"
+            translation="[140, 250]"
+            itemComponentName="PortalItem"
+            itemSize="[320, 180]"
+            itemSpacing="[20, 20]"
+            numColumns="3"
+            numRows="2"
+            drawFocusFeedback="false" />
+    </Group>
+
+    <!-- 2. CONTENIDO PRINCIPAL -->
+    <Group id="mainContent" visible="false">
+      <Label id="titleLabel" translation="[80, 20]" size="35" color="0xFFFFFFFF" bold="true" />
+      <Label id="movieCounterLabel" translation="[400, 30]" size="20" color="0xAAAAAAFF" />
+      <Label text="Usa el menú (Izquierda) para navegar" translation="[790, 30]" size="20" color="0xE50914FF" bold="true" />
+
+      <PosterGrid id="movieGrid" translation="[80, 80]" basePosterSize="[185, 278]" itemSpacing="[30, 25]" numColumns="5" numRows="2" wrap="false" />
+
+      <Group id="countryGroup" visible="false" translation="[80, 100]">
+          <Label text="Selecciona un País:" size="30" color="0xFFFFFFFF" bold="true" />
+          <LabelList id="countryList" translation="[0, 60]" itemSize="[500, 50]" color="0xAAAAAAFF" focusedColor="0xFFFFFFFF" />
+      </Group>
+
+      <Group id="searchGroup" visible="false" translation="[80, 100]">
+          <CustomKeyboard id="searchKeyboard" translation="[0, 0]" />
+          <PosterGrid id="searchResultsGrid" translation="[460, 0]" basePosterSize="[160, 240]" itemSpacing="[20, 20]" numColumns="3" numRows="2" wrap="false" />
+      </Group>
+
+      <Rectangle width="1280" height="60" color="0x111111FF" translation="[0, 660]">
+          <Label id="pageIndicator" size="22" color="0xFFFFFFFF" horizAlign="center" width="1280" translation="[0, 15]" />
+      </Rectangle>
+    </Group>
+
+    <!-- 3. INSTRUCCIONES -->
+    <Group id="instructionGroup" visible="false" translation="[80, 60]">
+        <Rectangle width="1120" height="620" color="0x111111FF" />
+        <Label text="COMO USAR PLAYZONETV" size="38" color="0xE50914FF" bold="true" translation="[40, 30]" />
+        <LayoutGroup translation="[40, 95]" itemSpacing="[0, 16]" layoutDirection="vert">
+            <Label text="Navegacion: usa las flechas del control para moverte por las pantallas." size="20" color="0xFFFFFFFF" />
+            <Label text="Seleccionar: presiona OK sobre una pelicula, canal o pais para abrirlo." size="20" color="0xFFFFFFFF" />
+            <Label text="Menu: presiona IZQUIERDA sobre el primer poster o pais para abrir el menu lateral." size="20" color="0xFFFFFFFF" />
+            <Label text="En el menu podes elegir: Inicio, Siguiente pagina, Pagina anterior, Buscar o Cerrar." size="20" color="0xFFFFFFFF" />
+            <Label text="Buscar: elegi Buscar y escribi con las flechas y OK sobre el teclado en pantalla." size="20" color="0xFFFFFFFF" />
+            <Label text="Tambien podes escribir usando el teclado del telefono desde la app de Roku." size="20" color="0xFFFFFFFF" />
+            <Label text="Los resultados de la busqueda aparecen a la derecha del teclado, listos para abrir." size="20" color="0xFFFFFFFF" />
+            <Label text="Volver: presiona ATRAS para cerrar el menu o regresar a la pantalla anterior." size="20" color="0xFFFFFFFF" />
+            <Label text=" " size="10" color="0xFFFFFFFF" />
+            <Label text="Contacto y soporte - Telegram: @I_am3301" size="22" color="0xE50914FF" bold="true" />
+        </LayoutGroup>
+        <Button id="closeInstructionsBtn" text="ENTENDIDO" translation="[40, 540]" minWidth="200" showFocusFootprint="true" />
+    </Group>
+
+    <Rectangle id="menuOverlay" width="1280" height="720" color="0x00000000" visible="false" />
+    <Group id="sideMenu" translation="[-300, 0]">
+      <Rectangle width="300" height="720" color="0x0A0A0AFF" />
+      <Label text="PlayZoneTV" translation="[30, 60]" size="40" color="0xE50914FF" bold="true" />
+      <MarkupList id="menuList" translation="[0, 160]" itemComponentName="SideMenuItem" itemSize="[300, 60]" drawFocusFeedback="false" />
+    </Group>
+
+    <Animation id="openMenuAnim" duration="0.3" easeFunction="linear">
+      <Vector2DFieldInterpolator key="[0.0, 1.0]" keyValue="[[-300,0], [0,0]]" fieldToInterp="sideMenu.translation" />
+    </Animation>
+    <Animation id="closeMenuAnim" duration="0.3" easeFunction="linear">
+      <Vector2DFieldInterpolator key="[0.0, 1.0]" keyValue="[[0,0], [-300,0]]" fieldToInterp="sideMenu.translation" />
+    </Animation>
+
+    <DetailsScreen id="detailsScreen" visible="false" />
+    <Video id="videoPlayer" width="1280" height="720" visible="false" />
+  </children>
+</component>

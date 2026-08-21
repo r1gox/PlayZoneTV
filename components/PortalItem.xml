@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="PortalItem" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContentChange" />
+    <field id="focusPercent" type="float" onChange="onFocusChange" />
+  </interface>
+  <children>
+    <Rectangle id="background" width="320" height="180" color="0x222222FF" />
+    <Label id="itemLabel" width="320" height="180" horizAlign="center" vertAlign="center" size="30" color="0xFFFFFFFF" bold="true" />
+  </children>
+  <script type="text/brightscript">
+    <![CDATA[
+    sub onContentChange()
+        m.top.findNode("itemLabel").text = m.top.itemContent.title
+    end sub
+    sub onFocusChange()
+        if m.top.focusPercent > 0.5
+            m.top.findNode("background").color = "0xE50914FF"
+        else
+            m.top.findNode("background").color = "0x222222FF"
+        end if
+    end sub
+    ]]>
+  </script>
+</component>

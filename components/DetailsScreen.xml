@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="DetailsScreen" extends="Group">
+  <interface>
+    <field id="content" type="node" onChange="onContentChange" />
+    <field id="playPressed" type="bool" alwaysNotify="true" />
+  </interface>
+
+  <script type="text/brightscript" uri="pkg:/components/DetailsScreen.brs" />
+
+  <children>
+    <!-- Fondo oscuro profundo con opacidad -->
+    <Rectangle width="1280" height="720" color="0x050505FF" />
+
+    <!-- Poster con sombra o borde sutil -->
+    <Poster id="poster" translation="[80, 100]" width="350" height="525" loadDisplayMode="scaleToFit" />
+
+    <!-- Área de Información Derecha -->
+    <LayoutGroup translation="[480, 100]" itemSpacing="[0, 20]" layoutDirection="vert">
+      <Label id="titleLabel" width="700" size="65" color="0xFFFFFFFF" bold="true" />
+
+      <LayoutGroup layoutDirection="horiz" itemSpacing="[30, 0]">
+          <Label id="yearLabel" size="26" color="0x00FF00FF" bold="true" />
+          <Rectangle width="80" height="35" color="0x333333FF">
+              <Label id="ratingLabel" width="80" height="35" horizAlign="center" vertAlign="center" size="20" color="0xFFFFFFFF" />
+          </Rectangle>
+          <Label id="qualityLabel" size="26" color="0xAAAAAAFF" />
+      </LayoutGroup>
+
+      <Label id="languagesLabel" size="24" color="0xE50914FF" bold="true" />
+
+      <Label id="descriptionLabel" width="720" height="280" size="24" wrap="true" color="0xCCCCCCFF" lineSpacing="8" />
+
+      <!-- Botón de Reproducción Grande -->
+      <Button id="playButton" text="REPRODUCIR" minWidth="350" height="70" showFocusFootprint="true" />
+    </LayoutGroup>
+  </children>
+</component>

@@ -1,0 +1,423 @@
+sub init()
+    ' Nodos
+    m.portalGrid = m.top.findNode("portalGrid")
+    m.portalGroup = m.top.findNode("portalGroup")
+    m.mainContent = m.top.findNode("mainContent")
+    m.movieGrid = m.top.findNode("movieGrid")
+    m.countryGroup = m.top.findNode("countryGroup")
+    m.countryList = m.top.findNode("countryList")
+    m.instructionGroup = m.top.findNode("instructionGroup")
+    m.sideMenu = m.top.findNode("sideMenu")
+    m.menuList = m.top.findNode("menuList")
+    m.menuOverlay = m.top.findNode("menuOverlay")
+    m.titleLabel = m.top.findNode("titleLabel")
+    m.movieCounterLabel = m.top.findNode("movieCounterLabel")
+    m.pageIndicator = m.top.findNode("pageIndicator")
+    m.detailsScreen = m.top.findNode("detailsScreen")
+    m.videoPlayer = m.top.findNode("videoPlayer")
+    m.searchGroup = m.top.findNode("searchGroup")
+    m.searchKeyboard = m.top.findNode("searchKeyboard")
+    m.searchResultsGrid = m.top.findNode("searchResultsGrid")
+
+    ' 1. Configurar Portal
+    portalContent = CreateObject("roSGNode", "ContentNode")
+    addItem(portalContent, "Películas")
+    addItem(portalContent, "CANALES TV CABLE")
+    addItem(portalContent, "TV POR PAÍSES")
+    addItem(portalContent, "Instrucciones")
+    addItem(portalContent, "BUSCAR PELÍCULAS")
+    m.portalGrid.content = portalContent
+
+    ' 2. Menu Lateral Minimalista
+    menuContent = CreateObject("roSGNode", "ContentNode")
+    addItem(menuContent, "INICIO")
+    addItem(menuContent, "SIG. PÁGINA >")
+    addItem(menuContent, "< PÁG. ANTERIOR")
+    addItem(menuContent, "BUSCAR")
+    addItem(menuContent, "CERRAR")
+    m.menuList.content = menuContent
+
+    ' 3. Lista masiva de países (IPTV)
+    m.countries = [
+        {name: "Argentina", code: "ar"}, {name: "Bolivia", code: "bo"}, {name: "Brasil", code: "br"},
+        {name: "Chile", code: "cl"}, {name: "Colombia", code: "co"}, {name: "Costa Rica", code: "cr"},
+        {name: "Cuba", code: "cu"}, {name: "Ecuador", code: "ec"}, {name: "El Salvador", code: "sv"},
+        {name: "España", code: "es"}, {name: "Guatemala", code: "gt"}, {name: "Honduras", code: "hn"},
+        {name: "México", code: "mx"}, {name: "Nicaragua", code: "ni"}, {name: "Panamá", code: "pa"},
+        {name: "Paraguay", code: "py"}, {name: "Perú", code: "pe"}, {name: "Puerto Rico", code: "pr"},
+        {name: "Rep. Dominicana", code: "do"}, {name: "Uruguay", code: "uy"}, {name: "Venezuela", code: "ve"},
+        {name: "USA (Español)", code: "us"}, {name: "Francia", code: "fr"}, {name: "Alemania", code: "de"},
+        {name: "Italia", code: "it"}, {name: "Portugal", code: "pt"}, {name: "Reino Unido", code: "gb"},
+        {name: "Afganistán", code: "af"}, {name: "Albania", code: "al"}, {name: "Argelia", code: "dz"},
+        {name: "Andorra", code: "ad"}, {name: "Angola", code: "ao"}, {name: "Armenia", code: "am"},
+        {name: "Australia", code: "au"}, {name: "Austria", code: "at"}, {name: "Azerbaiyán", code: "az"},
+        {name: "Bahamas", code: "bs"}, {name: "Bélgica", code: "be"}, {name: "Canadá", code: "ca"},
+        {name: "China", code: "cn"}, {name: "Egipto", code: "eg"}, {name: "Israel", code: "il"},
+        {name: "Japón", code: "jp"}, {name: "Noruega", code: "no"}, {name: "Rusia", code: "ru"},
+        {name: "Suecia", code: "se"}, {name: "Suiza", code: "ch"}, {name: "Turquía", code: "tr"}
+    ]
+
+    m.viewMode = "portal"
+    m.currentPage = 1
+    m.portalGrid.setFocus(true)
+
+    ' Estado del buscador (catálogo cacheado para filtrar sin recargar la API en cada letra)
+    m.allMovies = []
+    m.searchCatalogPage = 0
+    m.searchTotalPages = 16
+
+    ' Observadores
+    m.portalGrid.observeField("itemSelected", "onPortalItemSelected")
+    m.movieGrid.observeField("itemSelected", "onItemSelected")
+    m.countryList.observeField("itemSelected", "onCountrySelected")
+    m.menuList.observeField("itemSelected", "onMenuItemSelected")
+    m.detailsScreen.observeField("playPressed", "onPlayPressed")
+    m.top.findNode("closeInstructionsBtn").observeField("buttonSelected", "showPortal")
+    m.searchKeyboard.observeField("text", "onSearchTextChanged")
+    m.searchResultsGrid.observeField("itemSelected", "onSearchItemSelected")
+end sub
+
+sub addItem(parent, title)
+    item = parent.CreateChild("ContentNode")
+    item.title = title
+end sub
+
+' --- PORTAL ---
+sub onPortalItemSelected()
+    idx = m.portalGrid.itemSelected
+    if idx = 0 then loadMovies(1)
+    if idx = 1 then loadCable()
+    if idx = 2 then showCountryList()
+    if idx = 3 then showInstructions()
+    if idx = 4 then showSearch()
+end sub
+
+sub showPortal()
+    m.viewMode = "portal"
+    m.portalGroup.visible = true
+    m.mainContent.visible = false
+    m.instructionGroup.visible = false
+    m.searchGroup.visible = false
+    m.portalGrid.setFocus(true)
+end sub
+
+' --- SECCIONES ---
+sub loadMovies(page as Integer)
+    m.viewMode = "movies"
+    m.currentPage = page
+    m.portalGroup.visible = false
+    m.mainContent.visible = true
+    m.movieGrid.visible = true
+    m.countryGroup.visible = false
+    m.searchGroup.visible = false
+    m.titleLabel.text = "PlayZone - Películas"
+    m.apiTask = CreateObject("roSGNode", "ApiTask")
+    m.apiTask.requestUrl = "https://zonaapp.ikkihkurogane.workers.dev/list?page=" + page.toStr()
+    m.apiTask.observeField("response", "onMoviesRetrieved")
+    m.apiTask.control = "RUN"
+end sub
+
+sub onMoviesRetrieved()
+    res = m.apiTask.response
+    if res <> invalid and res.movies <> invalid
+        content = CreateObject("roSGNode", "ContentNode")
+        for each m_item in res.movies
+            item = content.CreateChild("ContentNode")
+            item.title = m_item.title
+            item.hdPosterUrl = getPosterUrl(m_item)
+            item.description = m_item.url
+        end for
+        m.movieGrid.content = content
+        m.movieGrid.setFocus(true)
+        m.movieCounterLabel.text = "(" + res.totalCount.toStr() + " películas)"
+        m.pageIndicator.text = "Página " + m.currentPage.toStr() + " de 16"
+    end if
+end sub
+
+sub loadCable()
+    m.viewMode = "channels"
+    m.portalGroup.visible = false
+    m.mainContent.visible = true
+    m.movieGrid.visible = true
+    m.countryGroup.visible = false
+    m.searchGroup.visible = false
+    m.titleLabel.text = "CANALES TV CABLE"
+    m.m3uTask = CreateObject("roSGNode", "M3uTask")
+    m.m3uTask.url = "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u"
+    m.m3uTask.observeField("content", "onChannelsRetrieved")
+    m.m3uTask.control = "RUN"
+end sub
+
+sub showCountryList()
+    m.viewMode = "countries"
+    m.portalGroup.visible = false
+    m.mainContent.visible = true
+    m.movieGrid.visible = false
+    m.countryGroup.visible = true
+    m.searchGroup.visible = false
+    m.titleLabel.text = "IPTV POR PAÍSES"
+
+    content = CreateObject("roSGNode", "ContentNode")
+    for each c in m.countries
+        item = content.CreateChild("ContentNode")
+        item.title = c.name
+        item.description = "https://iptv-org.github.io/iptv/countries/" + c.code + ".m3u"
+    end for
+    m.countryList.content = content
+    m.countryList.setFocus(true)
+end sub
+
+' --- BUSCADOR ---
+' Reutiliza el mismo endpoint de listado que ya usa la app (loadMovies) y el
+' componente CustomKeyboard existente. No modifica el flujo de películas,
+' canales ni países: solo agrega una vista nueva.
+sub showSearch()
+    m.viewMode = "search"
+    m.portalGroup.visible = false
+    m.mainContent.visible = true
+    m.movieGrid.visible = false
+    m.countryGroup.visible = false
+    m.searchGroup.visible = true
+    m.titleLabel.text = "Buscar Películas"
+
+    if m.allMovies.count() = 0
+        m.movieCounterLabel.text = "Cargando catálogo..."
+        m.searchCatalogPage = 1
+        fetchCatalogPage(m.searchCatalogPage)
+    else
+        m.movieCounterLabel.text = "Escribe para buscar (" + m.allMovies.count().toStr() + " títulos)"
+    end if
+
+    m.searchKeyboard.findNode("keyGrid").setFocus(true)
+end sub
+
+' Descarga todo el catálogo página por página (una sola vez, se cachea en
+' m.allMovies) para poder filtrar instantáneamente mientras se escribe.
+sub fetchCatalogPage(page as Integer)
+    m.catalogTask = CreateObject("roSGNode", "ApiTask")
+    m.catalogTask.requestUrl = "https://zonaapp.ikkihkurogane.workers.dev/list?page=" + page.toStr()
+    m.catalogTask.observeField("response", "onCatalogPageRetrieved")
+    m.catalogTask.control = "RUN"
+end sub
+
+sub onCatalogPageRetrieved()
+    res = m.catalogTask.response
+    if res <> invalid and res.movies <> invalid
+        for each mv in res.movies
+            m.allMovies.push(mv)
+        end for
+        if m.viewMode = "search"
+            m.movieCounterLabel.text = "Cargando catálogo... (" + m.searchCatalogPage.toStr() + "/" + m.searchTotalPages.toStr() + ")"
+        end if
+    end if
+
+    if m.searchCatalogPage < m.searchTotalPages
+        m.searchCatalogPage++
+        fetchCatalogPage(m.searchCatalogPage)
+    else
+        if m.viewMode = "search"
+            m.movieCounterLabel.text = "Escribe para buscar (" + m.allMovies.count().toStr() + " títulos)"
+            filterSearchResults()
+        end if
+    end if
+end sub
+
+' Se dispara solo cuando cambia el texto del CustomKeyboard (su propio
+' teclado sigue funcionando exactamente igual que antes).
+sub onSearchTextChanged()
+    filterSearchResults()
+end sub
+
+sub filterSearchResults()
+    query = LCase(m.searchKeyboard.text)
+    content = CreateObject("roSGNode", "ContentNode")
+    count = 0
+
+    if query <> "" and m.allMovies.count() > 0
+        for each mv in m.allMovies
+            if instr(1, LCase(mv.title), query) > 0
+                item = content.CreateChild("ContentNode")
+                item.title = mv.title
+                item.hdPosterUrl = getPosterUrl(mv)
+                item.description = mv.url
+                count++
+                if count >= 60 then exit for
+            end if
+        end for
+    end if
+
+    m.searchResultsGrid.content = content
+
+    if query <> "" and m.allMovies.count() > 0
+        m.movieCounterLabel.text = count.toStr() + " resultados para '" + query + "'"
+    end if
+end sub
+
+' Selecciona un resultado de búsqueda igual que onItemSelected lo hace para
+' películas: pide los detalles/streams con el mismo ApiTask.
+sub onSearchItemSelected()
+    idx = m.searchResultsGrid.itemSelected
+    item = m.searchResultsGrid.content.getChild(idx)
+    m.extractTask = CreateObject("roSGNode", "ApiTask")
+    m.extractTask.requestUrl = "https://zonaapp.ikkihkurogane.workers.dev/extract?url=" + item.description
+    m.extractTask.observeField("response", "onDetailsRetrieved")
+    m.extractTask.control = "RUN"
+end sub
+
+sub showInstructions()
+    m.viewMode = "instructions"
+    m.portalGroup.visible = false
+    m.mainContent.visible = false
+    m.instructionGroup.visible = true
+    m.top.findNode("closeInstructionsBtn").setFocus(true)
+end sub
+
+' --- NAVEGACIÓN ---
+sub onMenuItemSelected()
+    idx = m.menuList.itemSelected
+    if idx = 0
+        showPortal()
+    else if idx = 1 and m.viewMode = "movies"
+        if m.currentPage < 16 then m.currentPage++ : loadMovies(m.currentPage)
+    else if idx = 2 and m.viewMode = "movies"
+        if m.currentPage > 1 then m.currentPage-- : loadMovies(m.currentPage)
+    else if idx = 3
+        showSearch()
+    end if
+    toggleMenu(false)
+end sub
+
+sub onItemSelected()
+    idx = m.movieGrid.itemSelected
+    item = m.movieGrid.content.getChild(idx)
+    if m.viewMode = "movies"
+        m.extractTask = CreateObject("roSGNode", "ApiTask")
+        m.extractTask.requestUrl = "https://zonaapp.ikkihkurogane.workers.dev/extract?url=" + item.description
+        m.extractTask.observeField("response", "onDetailsRetrieved")
+        m.extractTask.control = "RUN"
+    else
+        playVideo(item.description)
+    end if
+end sub
+
+sub onChannelsRetrieved()
+    if m.m3uTask.content <> invalid
+        m.movieGrid.content = m.m3uTask.content
+        m.movieGrid.setFocus(true)
+    end if
+end sub
+
+sub onCountrySelected()
+    idx = m.countryList.itemSelected
+    selected = m.countryList.content.getChild(idx)
+    m.viewMode = "channels"
+    m.countryGroup.visible = false
+    m.movieGrid.visible = true
+    m.m3uTask = CreateObject("roSGNode", "M3uTask")
+    m.m3uTask.url = selected.description
+    m.m3uTask.observeField("content", "onChannelsRetrieved")
+    m.m3uTask.control = "RUN"
+end sub
+
+sub onDetailsRetrieved()
+    res = m.extractTask.response
+    if res <> invalid
+        detailsContent = CreateObject("roSGNode", "ContentNode")
+        detailsContent.title = res.title
+        detailsContent.hdPosterUrl = getPosterUrl(res)
+        detailsContent.description = res.description
+        m.currentStreams = res.streams
+        m.detailsScreen.content = detailsContent
+        m.detailsScreen.visible = true
+        m.detailsScreen.setFocus(true)
+    end if
+end sub
+
+sub onPlayPressed()
+    if m.currentStreams <> invalid and m.currentStreams.count() > 0
+        playVideo(m.currentStreams[0].url)
+    end if
+end sub
+
+sub playVideo(url as String)
+    videoContent = CreateObject("roSGNode", "ContentNode")
+    videoContent.url = url
+    videoContent.streamFormat = "hls"
+    m.videoPlayer.content = videoContent
+    m.videoPlayer.visible = true
+    m.videoPlayer.control = "play"
+    m.videoPlayer.setFocus(true)
+end sub
+
+sub toggleMenu(open as Boolean)
+    if open
+        m.menuOverlay.visible = true
+        m.top.findNode("openMenuAnim").control = "start"
+        m.menuList.setFocus(true)
+    else
+        m.menuOverlay.visible = false
+        m.top.findNode("closeMenuAnim").control = "start"
+        if m.viewMode = "movies" or m.viewMode = "channels" then m.movieGrid.setFocus(true)
+        if m.viewMode = "countries" then m.countryList.setFocus(true)
+        if m.viewMode = "portal" then m.portalGrid.setFocus(true)
+    end if
+end sub
+
+function onKeyEvent(key as String, press as Boolean) as Boolean
+    if not press then return false
+    if key = "back"
+        if m.menuOverlay.visible
+            toggleMenu(false)
+            return true
+        end if
+        if m.videoPlayer.visible
+            m.videoPlayer.control = "stop"
+            m.videoPlayer.visible = false
+            if m.viewMode = "movies" or m.viewMode = "search" then m.detailsScreen.setFocus(true) else m.movieGrid.setFocus(true)
+            return true
+        end if
+        if m.detailsScreen.visible
+            m.detailsScreen.visible = false
+            if m.viewMode = "search" then m.searchResultsGrid.setFocus(true) else m.movieGrid.setFocus(true)
+            return true
+        end if
+        if m.viewMode <> "portal"
+            showPortal()
+            return true
+        end if
+    end if
+    if key = "left" and m.viewMode <> "portal"
+        if (m.movieGrid.hasFocus() and m.movieGrid.itemFocused mod 5 = 0) or m.countryList.hasFocus()
+            toggleMenu(true)
+            return true
+        end if
+    end if
+    if m.viewMode = "search"
+        if key = "right" and m.searchKeyboard.isInFocusChain()
+            if m.searchResultsGrid.content <> invalid and m.searchResultsGrid.content.getChildCount() > 0
+                m.searchResultsGrid.setFocus(true)
+                return true
+            end if
+        else if key = "left" and m.searchResultsGrid.hasFocus()
+            m.searchKeyboard.findNode("keyGrid").setFocus(true)
+            return true
+        end if
+    end if
+    return false
+end function
+
+' Algunas APIs no siempre usan el mismo nombre de campo para la imagen
+' (por ejemplo "image" en el listado y "poster" en el detalle). Esta función
+' prueba los nombres más comunes hasta encontrar uno con datos.
+function getPosterUrl(data as object) as string
+    posibles = ["image", "poster", "img", "thumbnail", "cover", "poster_url", "imageUrl", "thumb"]
+    for each campo in posibles
+        if data.DoesExist(campo)
+            valor = data[campo]
+            if valor <> invalid and valor <> ""
+                return valor
+            end if
+        end if
+    end for
+    return ""
+end function
