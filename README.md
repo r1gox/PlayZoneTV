@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎬 PlayZone
+# 🎬 PlayZoneTV
 
 ### Canal de streaming para Roku — Películas, Canales de TV y Contenido por País
 
@@ -13,9 +13,9 @@
 
 ---
 
-## 📌 ¿Qué es PlayZone?
+## 📌 ¿Qué es PlayZoneTV?
 
-**PlayZone** es un canal privado para dispositivos **Roku**, desarrollado en **BrightScript / SceneGraph**. Permite navegar y reproducir:
+**PlayZoneTV** es un canal privado para dispositivos **Roku**, desarrollado en **BrightScript / SceneGraph**. Permite navegar y reproducir:
 
 - 🎥 **Películas** — catálogo paginado, consumido desde una API externa.
 - 📡 **Canales de TV por cable** — vía listas M3U.
@@ -158,7 +158,7 @@ No aloja ni almacena contenido propio: solo consulta y muestra fuentes externas 
 
 ## 🤝 Contribuciones
 
-¿Encontraste un bug o tenés una idea para mejorar PlayZone? Abrí un **Issue** o mandá un **Pull Request**. Toda ayuda es bienvenida.
+¿Encontraste un bug o tenés una idea para mejorar PlayZoneTV? Abrí un **Issue** o mandá un **Pull Request**. Toda ayuda es bienvenida.
 
 ---
 
