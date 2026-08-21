@@ -2,7 +2,7 @@
 <component name="ApiTask" extends="Task">
   <interface>
     <field id="requestUrl" type="string" />
-    <field id="response" type="assocarray" />
+    <field id="response" type="array" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/ApiTask.brs" />
 </component>

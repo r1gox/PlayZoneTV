@@ -48,8 +48,8 @@
               id="searchResultsGrid"
               translation="[460, 0]"
               itemComponentName="MovieItem"
-              itemSize="[160, 260]"
-              itemSpacing="[20, 20]"
+              itemSize="[185, 300]"
+              itemSpacing="[20, 15]"
               numColumns="3"
               numRows="2"
               drawFocusFeedback="false"
@@ -95,17 +95,9 @@
     </Animation>
 
     <DetailsScreen id="detailsScreen" visible="false" />
-    <Video
-        id="videoPlayer"
-        width="1280"
-        height="720"
-        visible="false"
-        enableUI="false" />
-
-    <Timer
-        id="videoTimeout"
-        duration="12"
-        repeat="false"
-        control="stop" />
+    <Video id="videoPlayer" width="1280" height="720" visible="false" />
+    <Rectangle id="videoStatusBox" width="600" height="70" color="0x000000CC" translation="[340, 620]" visible="false">
+        <Label id="videoStatusLabel" width="600" height="70" horizAlign="center" vertAlign="center" size="22" color="0xFFFFFFFF" />
+    </Rectangle>
   </children>
 </component>

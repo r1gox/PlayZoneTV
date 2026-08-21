@@ -4,31 +4,53 @@ sub init()
     m.focusBorder = m.top.findNode("focusBorder")
     m.shadow = m.top.findNode("shadow")
     m.bg = m.top.findNode("bg")
+    m.retryCount = 0
+    m.poster.observeField("loadStatus", "onPosterLoadStatus")
+end sub
+
+sub onPosterLoadStatus()
+    ' Si falla la carga (típico cuando el servidor todavía está generando
+    ' la miniatura la primera vez que se pide), reintentamos una vez tras
+    ' una breve espera, en vez de dejar el póster en gris para siempre.
+    if m.poster.loadStatus = "failed" and m.retryCount < 2
+        m.retryCount++
+        url = m.savedUrl
+        if url <> invalid and url <> ""
+            timer = CreateObject("roSGNode", "Timer")
+            timer.duration = 1.2
+            timer.id = "retryTimer"
+            timer.observeField("fire", "onRetryTimerFired")
+            m.retryTimer = timer
+            m.top.appendChild(timer)
+            timer.control = "start"
+        end if
+    end if
+end sub
+
+sub onRetryTimerFired()
+    if m.savedUrl <> invalid and m.savedUrl <> ""
+        m.poster.uri = ""
+        m.poster.uri = m.savedUrl
+    end if
 end sub
 
 sub onContentChange()
     item = m.top.itemContent
     if item = invalid then return
 
-    ' Limpiar imagen anterior
+    m.retryCount = 0
+
+    ' Limpiamos primero
     m.poster.uri = ""
 
-    posterUrl = ""
-
-    ' Intentar HD
     if item.hdPosterUrl <> invalid and item.hdPosterUrl <> ""
-        posterUrl = item.hdPosterUrl
-
-    ' Fallback SD
+        m.savedUrl = item.hdPosterUrl
+        m.poster.uri = item.hdPosterUrl
     else if item.SDPosterUrl <> invalid and item.SDPosterUrl <> ""
-        posterUrl = item.SDPosterUrl
-    end if
-
-    if posterUrl <> ""
-        m.poster.uri = posterUrl
-        m.bg.visible = false
+        m.savedUrl = item.SDPosterUrl
+        m.poster.uri = item.SDPosterUrl
     else
-        m.bg.visible = true
+        m.savedUrl = ""
     end if
 end sub
 
