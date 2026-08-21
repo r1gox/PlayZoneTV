@@ -95,6 +95,17 @@
     </Animation>
 
     <DetailsScreen id="detailsScreen" visible="false" />
-    <Video id="videoPlayer" width="1280" height="720" visible="false" />
+    <Video
+        id="videoPlayer"
+        width="1280"
+        height="720"
+        visible="false"
+        enableUI="false" />
+
+    <Timer
+        id="videoTimeout"
+        duration="12"
+        repeat="false"
+        control="stop" />
   </children>
 </component>
