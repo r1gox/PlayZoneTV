@@ -17,6 +17,8 @@ sub init()
     m.videoPlayer = m.top.findNode("videoPlayer")
     m.videoStatusBox = m.top.findNode("videoStatusBox")
     m.videoStatusLabel = m.top.findNode("videoStatusLabel")
+    m.updateBanner = m.top.findNode("updateBanner")
+    m.updateBannerLabel = m.top.findNode("updateBannerLabel")
     m.videoPlayer.observeField("state", "onVideoStateChange")
     m.searchGroup = m.top.findNode("searchGroup")
     m.searchKeyboard = m.top.findNode("searchKeyboard")
@@ -69,8 +71,8 @@ sub init()
     m.moviesRawData = []
     m.searchResultsRawData = []
     m.searchCatalogPage = 0
-    m.searchTotalPages = 114
-    m.totalMoviePages = 114
+    m.searchTotalPages = 38
+    m.totalMoviePages = 38
 
     ' Observadores
     m.portalGrid.observeField("itemSelected", "onPortalItemSelected")
@@ -81,6 +83,35 @@ sub init()
     m.top.findNode("closeInstructionsBtn").observeField("buttonSelected", "showPortal")
     m.searchKeyboard.observeField("text", "onSearchTextChanged")
     m.searchResultsGrid.observeField("itemSelected", "onSearchItemSelected")
+
+    checkForUpdates()
+end sub
+
+' --- CHEQUEO DE ACTUALIZACIONES ---
+' Como este canal se instala manualmente (sideload), Roku no lo actualiza
+' solo. Al abrir la app, consulta un archivo version.json en GitHub y lo
+' compara contra la version instalada. Si hay una mas nueva, muestra un
+' aviso discreto en el portal (no bloquea nada, se puede seguir usando).
+sub checkForUpdates()
+    appInfo = CreateObject("roAppInfo")
+    m.installedVersion = appInfo.GetVersion()
+
+    m.updateTask = CreateObject("roSGNode", "VersionCheckTask")
+    m.updateTask.requestUrl = "https://raw.githubusercontent.com/r1gox/PlayZoneTV/main/version.json"
+    m.updateTask.observeField("response", "onUpdateCheckRetrieved")
+    m.updateTask.control = "RUN"
+end sub
+
+sub onUpdateCheckRetrieved()
+    res = m.updateTask.response
+    if res = invalid or res.latest_version = invalid then return
+
+    if res.latest_version <> m.installedVersion
+        msg = "Hay una version nueva disponible (" + res.latest_version + "). Volve a instalar el canal para actualizar."
+        if res.message <> invalid and res.message <> "" then msg = res.message
+        m.updateBannerLabel.text = msg
+        m.updateBanner.visible = true
+    end if
 end sub
 
 sub addItem(parent, title)
@@ -134,7 +165,6 @@ sub onMoviesRetrieved()
             item = content.CreateChild("ContentNode")
             item.title = m_item.title
             item.hdPosterUrl = getPosterUrl(m_item)
-            item.description = m_item.url
         end for
         m.moviesRawData = res
         m.movieGrid.content = content
@@ -250,7 +280,6 @@ sub filterSearchResults()
                 item = content.CreateChild("ContentNode")
                 item.title = mv.title
                 item.hdPosterUrl = getPosterUrl(mv)
-                item.description = mv.url
                 m.searchResultsRawData.push(mv)
                 count++
                 if count >= 60 then exit for
@@ -286,6 +315,8 @@ sub showMovieDetails(data as object)
     detailsContent.hdPosterUrl = getPosterUrl(data)
     detailsContent.description = data.description
     if data.rating <> invalid then detailsContent.rating = data.rating
+    if data.year <> invalid then detailsContent.releaseDate = data.year
+    if data.quality <> invalid then detailsContent.shortDescription = data.quality
     if data.genres <> invalid then detailsContent.categories = data.genres
 
     m.currentStreams = []
@@ -375,6 +406,7 @@ sub tryPlayCurrentStream()
         return
     end if
 
+    m.formatRetryDone = false
     total = m.currentStreams.count()
     if total > 1
         m.videoStatusBox.visible = true
@@ -387,8 +419,12 @@ sub tryPlayCurrentStream()
     playVideo(stream.url, stream.format)
 end sub
 
-' Si el servidor actual falla (link caído, error de red, etc.), prueba
-' automáticamente con el siguiente de la lista.
+' Si el servidor actual falla, decide cómo seguir según el TIPO de error:
+' - Si el error sugiere que el contenido está mal etiquetado (formato/
+'   contenedor incorrecto), reintenta la MISMA url con el otro formato
+'   común antes de rendirse con ese servidor.
+' - Si es un error de red/HTTP real, pasa directo al siguiente servidor
+'   (reintentar con otro formato no va a arreglar un servidor caído).
 sub onVideoStateChange()
     state = m.videoPlayer.state
     if state = "error"
@@ -402,8 +438,25 @@ sub onVideoStateChange()
         print "errorMsg: "; m.videoPlayer.errorMsg
         print "=============================="
 
-        m.currentStreamIndex++
-        tryPlayCurrentStream()
+        msg = LCase(m.videoPlayer.errorMsg)
+        esProblemaDeFormato = (instr(1, msg, "malformed") > 0) or (instr(1, msg, "codec") > 0) or (instr(1, msg, "container") > 0)
+
+        if esProblemaDeFormato and not m.formatRetryDone
+            m.formatRetryDone = true
+            actual = m.currentStreams[m.currentStreamIndex]
+            if actual.format = "hls" then
+                otroFormato = "mp4"
+            else
+                otroFormato = "hls"
+            end if
+            print "Reintentando mismo link con formato alternativo: "; otroFormato
+            m.videoStatusLabel.text = "Probando otro formato para este servidor..."
+            m.videoStatusBox.visible = true
+            playVideo(actual.url, otroFormato)
+        else
+            m.currentStreamIndex++
+            tryPlayCurrentStream()
+        end if
     else if state = "playing" or state = "buffering"
         m.videoStatusBox.visible = false
     end if

@@ -6,7 +6,7 @@
 
     <!-- 1. PORTAL DE INICIO -->
     <Group id="portalGroup" visible="true">
-        <Label text="PlayZoneTV" size="60" color="0xE50914FF" bold="true" horizAlign="center" width="1280" translation="[0, 80]" />
+        <Label text="PlayZoneTV" size="60" color="0x7F5AF0FF" bold="true" horizAlign="center" width="1280" translation="[0, 80]" />
         <Label text="Entretenimiento sin límites" size="22" color="0x777777FF" horizAlign="center" width="1280" translation="[0, 150]" />
 
         <MarkupGrid
@@ -18,13 +18,20 @@
             numColumns="3"
             numRows="2"
             drawFocusFeedback="false" />
+
+        <!-- Aviso de actualización disponible: aparece solo si hay una
+             version mas nueva en version.json, no bloquea la navegacion -->
+        <Rectangle id="updateBanner" width="900" height="50" color="0x7F5AF033" translation="[190, 655]" visible="false">
+            <Rectangle width="900" height="2" color="0x7F5AF0FF" />
+            <Label id="updateBannerLabel" width="900" height="50" horizAlign="center" vertAlign="center" size="18" color="0xFFFFFFFF" translation="[0, 2]" />
+        </Rectangle>
     </Group>
 
     <!-- 2. CONTENIDO PRINCIPAL -->
     <Group id="mainContent" visible="false">
       <Label id="titleLabel" translation="[80, 20]" size="35" color="0xFFFFFFFF" bold="true" />
       <Label id="movieCounterLabel" translation="[400, 30]" size="20" color="0xAAAAAAFF" />
-      <Label text="Usa el menú (Izquierda) para navegar" translation="[790, 30]" size="20" color="0xE50914FF" bold="true" />
+      <Label text="Usa el menú (Izquierda) para navegar" translation="[790, 30]" size="20" color="0x7F5AF0FF" bold="true" />
 
       <MarkupGrid
           id="movieGrid"
@@ -64,7 +71,7 @@
     <!-- 3. INSTRUCCIONES -->
     <Group id="instructionGroup" visible="false" translation="[80, 60]">
         <Rectangle width="1120" height="620" color="0x111111FF" />
-        <Label text="COMO USAR PLAYZONETV" size="38" color="0xE50914FF" bold="true" translation="[40, 30]" />
+        <Label text="COMO USAR PLAYZONETV" size="38" color="0x7F5AF0FF" bold="true" translation="[40, 30]" />
         <LayoutGroup translation="[40, 95]" itemSpacing="[0, 16]" layoutDirection="vert">
             <Label text="Navegacion: usa las flechas del control para moverte por las pantallas." size="20" color="0xFFFFFFFF" />
             <Label text="Seleccionar: presiona OK sobre una pelicula, canal o pais para abrirlo." size="20" color="0xFFFFFFFF" />
@@ -75,7 +82,7 @@
             <Label text="Los resultados de la busqueda aparecen a la derecha del teclado, listos para abrir." size="20" color="0xFFFFFFFF" />
             <Label text="Volver: presiona ATRAS para cerrar el menu o regresar a la pantalla anterior." size="20" color="0xFFFFFFFF" />
             <Label text=" " size="10" color="0xFFFFFFFF" />
-            <Label text="Contacto y soporte - Telegram: @I_am3301" size="22" color="0xE50914FF" bold="true" />
+            <Label text="Contacto y soporte - Telegram: @I_am3301" size="22" color="0x7F5AF0FF" bold="true" />
         </LayoutGroup>
         <Button id="closeInstructionsBtn" text="ENTENDIDO" translation="[40, 540]" minWidth="200" showFocusFootprint="true" />
     </Group>
@@ -83,7 +90,7 @@
     <Rectangle id="menuOverlay" width="1280" height="720" color="0x00000000" visible="false" />
     <Group id="sideMenu" translation="[-300, 0]">
       <Rectangle width="300" height="720" color="0x0A0A0AFF" />
-      <Label text="PlayZoneTV" translation="[30, 60]" size="40" color="0xE50914FF" bold="true" />
+      <Label text="PlayZoneTV" translation="[30, 60]" size="40" color="0x7F5AF0FF" bold="true" />
       <MarkupList id="menuList" translation="[0, 160]" itemComponentName="SideMenuItem" itemSize="[300, 60]" drawFocusFeedback="false" />
     </Group>
 

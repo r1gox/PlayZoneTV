@@ -37,10 +37,10 @@
         height="278"
         color="0x00000000"
         opacity="0">
-        <Rectangle width="185" height="3" color="0xE50914FF" translation="[0, 0]" />
-        <Rectangle width="185" height="3" color="0xE50914FF" translation="[0, 275]" />
-        <Rectangle width="3" height="278" color="0xE50914FF" translation="[0, 0]" />
-        <Rectangle width="3" height="278" color="0xE50914FF" translation="[182, 0]" />
+        <Rectangle width="185" height="3" color="0x7F5AF0FF" translation="[0, 0]" />
+        <Rectangle width="185" height="3" color="0x7F5AF0FF" translation="[0, 275]" />
+        <Rectangle width="3" height="278" color="0x7F5AF0FF" translation="[0, 0]" />
+        <Rectangle width="3" height="278" color="0x7F5AF0FF" translation="[182, 0]" />
       </Rectangle>
     </Group>
   </children>

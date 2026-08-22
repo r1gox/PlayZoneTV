@@ -14,7 +14,7 @@ end sub
 sub onFocusChange()
     if m.top.focusPercent > 0.5
         m.background.color = "0x333333FF"
-        m.focusIndicator.color = "0xE50914FF"
+        m.focusIndicator.color = "0x7F5AF0FF"
         m.itemLabel.color = "0xFFFFFFFF"
     else
         m.background.color = "0x00000000"

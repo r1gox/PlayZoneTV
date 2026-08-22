@@ -15,7 +15,7 @@
     end sub
     sub onFocusChange()
         if m.top.focusPercent > 0.5
-            m.top.findNode("background").color = "0xE50914FF"
+            m.top.findNode("background").color = "0x7F5AF0FF"
         else
             m.top.findNode("background").color = "0x222222FF"
         end if
