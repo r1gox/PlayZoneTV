@@ -4,22 +4,75 @@
     <field id="itemContent" type="node" onChange="onContentChange" />
     <field id="focusPercent" type="float" onChange="onFocusChange" />
   </interface>
-  <children>
-    <Rectangle id="background" width="320" height="180" color="0x222222FF" />
-    <Label id="itemLabel" width="320" height="180" horizAlign="center" vertAlign="center" size="30" color="0xFFFFFFFF" bold="true" />
-  </children>
+
   <script type="text/brightscript">
     <![CDATA[
-    sub onContentChange()
-        m.top.findNode("itemLabel").text = m.top.itemContent.title
-    end sub
-    sub onFocusChange()
-        if m.top.focusPercent > 0.5
-            m.top.findNode("background").color = "0x7F5AF0FF"
+      sub init()
+        m.background = m.top.findNode("background")
+        m.icon = m.top.findNode("icon")
+        m.itemLabel = m.top.findNode("itemLabel")
+      end sub
+
+      sub onContentChange()
+        item = m.top.itemContent
+        if item = invalid then return
+
+        title = item.title
+        m.itemLabel.text = title
+
+        t = LCase(title)
+        if Instr(1, t, "buscar") > 0
+          m.icon.uri = "pkg:/images/icons/search.png"
+        else if Instr(1, t, "película") > 0 or Instr(1, t, "pelicula") > 0
+          m.icon.uri = "pkg:/images/icons/film.png"
+        else if Instr(1, t, "cable") > 0 or Instr(1, t, "canal") > 0
+          m.icon.uri = "pkg:/images/icons/tv.png"
+        else if Instr(1, t, "país") > 0 or Instr(1, t, "pais") > 0
+          m.icon.uri = "pkg:/images/icons/globe.png"
+        else if Instr(1, t, "instruc") > 0
+          m.icon.uri = "pkg:/images/icons/info.png"
         else
-            m.top.findNode("background").color = "0x222222FF"
+          m.icon.uri = "pkg:/images/icons/film.png"
         end if
-    end sub
+      end sub
+
+      sub onFocusChange()
+        if m.top.focusPercent > 0.5
+          m.background.color = "0x7B4DFFFF"
+          m.itemLabel.color = "0xFFFFFFFF"
+        else
+          m.background.color = "0x1E2433FF"
+          m.itemLabel.color = "0xEEEEEEFF"
+        end if
+      end sub
     ]]>
   </script>
+
+  <children>
+    <Rectangle
+        id="background"
+        width="320"
+        height="180"
+        color="0x1E2433FF" />
+
+    <Poster
+        id="icon"
+        translation="[120, 28]"
+        width="80"
+        height="80"
+        loadDisplayMode="scaleToFit" />
+
+    <Label
+        id="itemLabel"
+        translation="[10, 115]"
+        width="300"
+        height="50"
+        size="22"
+        color="0xEEEEEEFF"
+        bold="true"
+        horizAlign="center"
+        vertAlign="center"
+        wrap="true"
+        maxLines="2" />
+  </children>
 </component>
