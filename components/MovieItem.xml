@@ -5,45 +5,101 @@
     <field id="focusPercent" type="float" onChange="onFocusChange" />
   </interface>
 
+  <script type="text/brightscript">
+    <![CDATA[
+      sub init()
+        m.poster = m.top.findNode("poster")
+        m.title = m.top.findNode("title")
+        m.focusRect = m.top.findNode("focusRect")
+        m.placeholder = m.top.findNode("placeholder")
+        m.placeholderLabel = m.top.findNode("placeholderLabel")
+
+        m.poster.observeField("loadStatus", "onPosterLoadStatus")
+      end sub
+
+      sub onContentChange()
+        item = m.top.itemContent
+        if item <> invalid
+          ' Siempre mostrar el gris primero
+          m.placeholder.visible = true
+          m.placeholderLabel.visible = true
+          m.poster.visible = false
+
+          m.poster.uri = item.hdPosterUrl
+          m.title.text = item.title
+        end if
+      end sub
+
+      sub onPosterLoadStatus()
+        status = m.poster.loadStatus
+        ' ready = imagen cargó bien
+        ' failed / loading / none = mantener gris
+        if status = "ready"
+          m.placeholder.visible = false
+          m.placeholderLabel.visible = false
+          m.poster.visible = true
+        else if status = "failed"
+          m.placeholder.visible = true
+          m.placeholderLabel.visible = true
+          m.poster.visible = false
+        end if
+      end sub
+
+      sub onFocusChange()
+        focused = m.top.focusPercent > 0.5
+        m.focusRect.visible = focused
+        if focused
+          m.title.color = "0xFFFFFFFF"
+        else
+          m.title.color = "0xCCCCCCFF"
+        end if
+      end sub
+    ]]>
+  </script>
+
   <children>
-    <!-- Fondo oscuro mientras carga -->
-    <Rectangle
-      id="bg"
-      width="185"
-      height="278"
-      color="0x1A1A1AFF" />
+    <!-- Borde de foco -->
+    <Rectangle id="focusRect" width="185" height="300" color="0x7F5AF0FF" visible="false" />
 
-    <!-- Sombra -->
+    <!-- Fondo gris (placeholder) -->
     <Rectangle
-      id="shadow"
-      width="185"
-      height="278"
-      color="0x000000AA"
-      translation="[6, 8]"
-      opacity="0" />
+        id="placeholder"
+        translation="[4, 4]"
+        width="177"
+        height="250"
+        color="0x2A2A2AFF" />
 
-    <Group id="posterGroup" scale="[1.0, 1.0]">
-      <Poster
+    <!-- Texto centrado mientras no hay imagen -->
+    <Label
+        id="placeholderLabel"
+        translation="[4, 110]"
+        width="177"
+        height="40"
+        text="Sin portada"
+        size="16"
+        color="0x888888FF"
+        horizAlign="center"
+        vertAlign="center" />
+
+    <!-- Poster real (se muestra solo cuando carga) -->
+    <Poster
         id="poster"
-        width="185"
-        height="278"
-        loadDisplayMode="scaleToFill"
-        loadSync="false" />
+        translation="[4, 4]"
+        width="177"
+        height="250"
+        loadDisplayMode="scaleToZoom"
+        visible="false" />
 
-      <!-- Borde de focus -->
-      <Rectangle
-        id="focusBorder"
-        width="185"
-        height="278"
-        color="0x00000000"
-        opacity="0">
-        <Rectangle width="185" height="3" color="0x7F5AF0FF" translation="[0, 0]" />
-        <Rectangle width="185" height="3" color="0x7F5AF0FF" translation="[0, 275]" />
-        <Rectangle width="3" height="278" color="0x7F5AF0FF" translation="[0, 0]" />
-        <Rectangle width="3" height="278" color="0x7F5AF0FF" translation="[182, 0]" />
-      </Rectangle>
-    </Group>
+    <!-- Título debajo -->
+    <Label
+        id="title"
+        translation="[4, 258]"
+        width="177"
+        height="38"
+        size="16"
+        color="0xCCCCCCFF"
+        horizAlign="center"
+        wrap="true"
+        maxLines="2" />
   </children>
-
-  <script type="text/brightscript" uri="pkg:/components/MovieItem.brs" />
 </component>
