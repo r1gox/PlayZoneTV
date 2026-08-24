@@ -153,7 +153,7 @@ Si un video no se puede reproducir en Roku, verás un mensaje y podrás volver c
 
 ## 📬 Contacto
 
-Dudas o soporte: **Telegram** [@I_am3301](https://t.me/I_amr1x)
+Dudas o soporte: **Telegram** [@I_amr1x](https://t.me/I_amr1x)
 
 ---
 
