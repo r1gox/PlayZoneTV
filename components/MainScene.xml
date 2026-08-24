@@ -2,7 +2,7 @@
 <component name="MainScene" extends="Scene">
   <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
   <children>
-    <Rectangle width="1280" height="720" color="0x0B0B0FFF" />
+    <Rectangle width="1280" height="720" color="0x050505FF" />
 
     <!-- 1. PORTAL DE INICIO -->
     <Group id="portalGroup" visible="true">
@@ -19,6 +19,8 @@
             numRows="2"
             drawFocusFeedback="false" />
 
+        <!-- Aviso de actualización disponible: aparece solo si hay una
+             version mas nueva en version.json, no bloquea la navegacion -->
         <Rectangle id="updateBanner" width="900" height="50" color="0x7F5AF033" translation="[190, 655]" visible="false">
             <Rectangle width="900" height="2" color="0x7F5AF0FF" />
             <Label id="updateBannerLabel" width="900" height="50" horizAlign="center" vertAlign="center" size="18" color="0xFFFFFFFF" translation="[0, 2]" />
@@ -27,71 +29,26 @@
 
     <!-- 2. CONTENIDO PRINCIPAL -->
     <Group id="mainContent" visible="false">
+      <Label id="titleLabel" translation="[80, 20]" size="35" color="0xFFFFFFFF" bold="true" />
+      <Label id="movieCounterLabel" translation="[0, 30]" size="20" color="0xAAAAAAFF" horizAlign="center" width="1280" />
+      <Label id="navHintLabel" text="Usa el menú (Izquierda) para navegar" translation="[790, 30]" size="20" color="0x7F5AF0FF" bold="true" />
 
-      <!-- HEADER estilo capturas -->
-      <Rectangle id="headerBg" width="1280" height="68" color="0x0B0B0FFF" translation="[0, 0]" />
-
-      <!-- Icono claqueta púrpura -->
-      <Poster
-          id="headerIcon"
-          uri="pkg:/images/icons/film.png"
-          width="32"
-          height="32"
-          translation="[48, 18]"
-          loadDisplayMode="scaleToFit"
-          visible="true" />
-
-      <!-- Título (alineado verticalmente con el icono) -->
-      <Label id="titleLabel"
-             translation="[92, 20]"
-             size="28"
-             color="0xFFFFFFFF"
-             bold="true"
-             width="520"
-             vertAlign="center"
-             height="32" />
-
-      <!-- (XX películas) centrado – SOLO películas -->
-      <Label id="movieCounterLabel"
-             translation="[0, 22]"
-             size="19"
-             color="0xAAAAAAFF"
-             horizAlign="center"
-             vertAlign="center"
-             height="28"
-             width="1280"
-             visible="false" />
-
-      <!-- Usa el menú… – SOLO películas -->
-      <Label id="navHintLabel"
-             text="Usa el menú (Izquierda) para navegar"
-             translation="[820, 22]"
-             size="17"
-             color="0x7F5AF0FF"
-             bold="true"
-             vertAlign="center"
-             height="28"
-             visible="false" />
-
-      <!-- GRID (misma medida para películas y canales – evita amontonamiento) -->
       <MarkupGrid
           id="movieGrid"
-          translation="[55, 82]"
+          translation="[80, 80]"
           itemComponentName="MovieItem"
-          itemSize="[205, 285]"
-          itemSpacing="[20, 18]"
+          itemSize="[185, 300]"
+          itemSpacing="[28, 28]"
           numColumns="5"
           numRows="2"
           drawFocusFeedback="false"
           focusBitmapBlendColor="0x00000000" />
 
-      <!-- Países -->
       <Group id="countryGroup" visible="false" translation="[80, 100]">
           <Label text="Selecciona un País:" size="30" color="0xFFFFFFFF" bold="true" />
           <LabelList id="countryList" translation="[0, 60]" itemSize="[500, 50]" color="0xAAAAAAFF" focusedColor="0xFFFFFFFF" />
       </Group>
 
-      <!-- Buscador -->
       <Group id="searchGroup" visible="false" translation="[80, 100]">
           <CustomKeyboard id="searchKeyboard" translation="[0, 0]" />
           <MarkupGrid
@@ -106,14 +63,8 @@
               focusBitmapBlendColor="0x00000000" />
       </Group>
 
-      <!-- BARRA PÁGINA – SOLO películas -->
-      <Rectangle id="pageBar" width="1280" height="50" color="0x111111FF" translation="[0, 670]" visible="false">
-          <Label id="pageIndicator"
-                 size="19"
-                 color="0xFFFFFFFF"
-                 horizAlign="center"
-                 width="1280"
-                 translation="[0, 13]" />
+      <Rectangle id="pageBar" width="1280" height="60" color="0x111111FF" translation="[0, 660]">
+          <Label id="pageIndicator" size="22" color="0xFFFFFFFF" horizAlign="center" width="1280" translation="[0, 15]" />
       </Rectangle>
     </Group>
 

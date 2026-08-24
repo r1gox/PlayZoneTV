@@ -12,6 +12,8 @@ sub init()
     m.menuOverlay = m.top.findNode("menuOverlay")
     m.titleLabel = m.top.findNode("titleLabel")
     m.movieCounterLabel = m.top.findNode("movieCounterLabel")
+    m.navHintLabel = m.top.findNode("navHintLabel")
+    m.pageBar = m.top.findNode("pageBar")
     m.pageIndicator = m.top.findNode("pageIndicator")
     m.detailsScreen = m.top.findNode("detailsScreen")
     m.videoPlayer = m.top.findNode("videoPlayer")
@@ -23,11 +25,6 @@ sub init()
     m.searchGroup = m.top.findNode("searchGroup")
     m.searchKeyboard = m.top.findNode("searchKeyboard")
     m.searchResultsGrid = m.top.findNode("searchResultsGrid")
-
-    ' Nodos de interfaz (header + page bar)
-    m.headerIcon = m.top.findNode("headerIcon")
-    m.navHintLabel = m.top.findNode("navHintLabel")
-    m.pageBar = m.top.findNode("pageBar")
 
     ' 1. Configurar Portal
     portalContent = CreateObject("roSGNode", "ContentNode")
@@ -71,13 +68,13 @@ sub init()
     m.currentPage = 1
     m.portalGrid.setFocus(true)
 
-    ' Estado del buscador
+    ' Estado del buscador (catálogo cacheado para filtrar sin recargar la API en cada letra)
     m.allMovies = []
     m.moviesRawData = []
     m.searchResultsRawData = []
     m.searchCatalogPage = 0
-    m.searchTotalPages = 38
-    m.totalMoviePages = 38
+    m.searchTotalPages = 16
+    m.totalMoviePages = 16
 
     ' Observadores
     m.portalGrid.observeField("itemSelected", "onPortalItemSelected")
@@ -92,6 +89,11 @@ sub init()
     checkForUpdates()
 end sub
 
+' --- CHEQUEO DE ACTUALIZACIONES ---
+' Como este canal se instala manualmente (sideload), Roku no lo actualiza
+' solo. Al abrir la app, consulta un archivo version.json en GitHub y lo
+' compara contra la version instalada. Si hay una mas nueva, muestra un
+' aviso discreto en el portal (no bloquea nada, se puede seguir usando).
 sub checkForUpdates()
     appInfo = CreateObject("roAppInfo")
     m.installedVersion = appInfo.GetVersion()
@@ -138,22 +140,6 @@ sub showPortal()
     m.portalGrid.setFocus(true)
 end sub
 
-' UI de películas: header completo + página
-sub setMoviesUI()
-    m.headerIcon.visible = true
-    m.movieCounterLabel.visible = true
-    m.navHintLabel.visible = true
-    m.pageBar.visible = true
-end sub
-
-' UI de canales: solo título + icono (sin contador, sin menú, sin página)
-sub setChannelsUI()
-    m.headerIcon.visible = true
-    m.movieCounterLabel.visible = false
-    m.navHintLabel.visible = false
-    m.pageBar.visible = false
-end sub
-
 ' --- SECCIONES ---
 sub loadMovies(page as Integer)
     m.viewMode = "movies"
@@ -163,26 +149,31 @@ sub loadMovies(page as Integer)
     m.movieGrid.visible = true
     m.countryGroup.visible = false
     m.searchGroup.visible = false
-
-    m.titleLabel.text = "PLAYZONE - PELÍCULAS"
-    setMoviesUI()
-
+    m.titleLabel.text = "PlayZone - Películas"
+    if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = true
+    if m.navHintLabel <> invalid then m.navHintLabel.visible = true
+    if m.pageBar <> invalid then m.pageBar.visible = true
     m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.requestUrl = "https://raw.githubusercontent.com/r1gox/PlayZone-Api/main/movies/page-" + page.toStr() + ".json"
+    m.apiTask.requestUrl = "https://zonaapp.ikkihkurogane.workers.dev/list?page=" + page.toStr()
     m.apiTask.observeField("response", "onMoviesRetrieved")
     m.apiTask.control = "RUN"
 end sub
 
+' Cada página del repo de GitHub ya trae un ARRAY con todo lo necesario por
+' película (título, imagen, rating, sinopsis, géneros y los links de video),
+' así que no hace falta pedir nada más al seleccionar una.
 sub onMoviesRetrieved()
     res = m.apiTask.response
     if res <> invalid
+        list = flattenMovieList(res)
+        if res.totalPages <> invalid then m.totalMoviePages = res.totalPages
         content = CreateObject("roSGNode", "ContentNode")
-        for each m_item in res
+        for each m_item in list
             item = content.CreateChild("ContentNode")
             item.title = m_item.title
             item.hdPosterUrl = getPosterUrl(m_item)
         end for
-        m.moviesRawData = res
+        m.moviesRawData = list
         m.movieGrid.content = content
         m.movieGrid.setFocus(true)
         m.movieCounterLabel.text = "(" + content.getChildCount().toStr() + " películas)"
@@ -197,10 +188,10 @@ sub loadCable()
     m.movieGrid.visible = true
     m.countryGroup.visible = false
     m.searchGroup.visible = false
-
     m.titleLabel.text = "CANALES TV CABLE"
-    setChannelsUI()
-
+    if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = false
+    if m.navHintLabel <> invalid then m.navHintLabel.visible = false
+    if m.pageBar <> invalid then m.pageBar.visible = false
     m.m3uTask = CreateObject("roSGNode", "M3uTask")
     m.m3uTask.url = "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u"
     m.m3uTask.observeField("content", "onChannelsRetrieved")
@@ -215,11 +206,9 @@ sub showCountryList()
     m.countryGroup.visible = true
     m.searchGroup.visible = false
     m.titleLabel.text = "IPTV POR PAÍSES"
-
-    m.headerIcon.visible = true
-    m.movieCounterLabel.visible = false
-    m.navHintLabel.visible = false
-    m.pageBar.visible = false
+    if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = false
+    if m.navHintLabel <> invalid then m.navHintLabel.visible = false
+    if m.pageBar <> invalid then m.pageBar.visible = false
 
     content = CreateObject("roSGNode", "ContentNode")
     for each c in m.countries
@@ -231,6 +220,10 @@ sub showCountryList()
     m.countryList.setFocus(true)
 end sub
 
+' --- BUSCADOR ---
+' Reutiliza el mismo endpoint de listado que ya usa la app (loadMovies) y el
+' componente CustomKeyboard existente. No modifica el flujo de películas,
+' canales ni países: solo agrega una vista nueva.
 sub showSearch()
     m.viewMode = "search"
     m.portalGroup.visible = false
@@ -239,11 +232,6 @@ sub showSearch()
     m.countryGroup.visible = false
     m.searchGroup.visible = true
     m.titleLabel.text = "Buscar Películas"
-
-    m.headerIcon.visible = true
-    m.movieCounterLabel.visible = true
-    m.navHintLabel.visible = false
-    m.pageBar.visible = false
 
     if m.allMovies.count() = 0
         m.movieCounterLabel.text = "Cargando catálogo..."
@@ -256,9 +244,11 @@ sub showSearch()
     m.searchKeyboard.findNode("keyGrid").setFocus(true)
 end sub
 
+' Descarga todo el catálogo página por página (una sola vez, se cachea en
+' m.allMovies) para poder filtrar instantáneamente mientras se escribe.
 sub fetchCatalogPage(page as Integer)
     m.catalogTask = CreateObject("roSGNode", "ApiTask")
-    m.catalogTask.requestUrl = "https://raw.githubusercontent.com/r1gox/PlayZone-Api/main/movies/page-" + page.toStr() + ".json"
+    m.catalogTask.requestUrl = "https://zonaapp.ikkihkurogane.workers.dev/list?page=" + page.toStr()
     m.catalogTask.observeField("response", "onCatalogPageRetrieved")
     m.catalogTask.control = "RUN"
 end sub
@@ -266,7 +256,9 @@ end sub
 sub onCatalogPageRetrieved()
     res = m.catalogTask.response
     if res <> invalid
-        for each mv in res
+        if res.totalPages <> invalid then m.searchTotalPages = res.totalPages
+        list = flattenMovieList(res)
+        for each mv in list
             m.allMovies.push(mv)
         end for
         if m.viewMode = "search"
@@ -285,6 +277,8 @@ sub onCatalogPageRetrieved()
     end if
 end sub
 
+' Se dispara solo cuando cambia el texto del CustomKeyboard (su propio
+' teclado sigue funcionando exactamente igual que antes).
 sub onSearchTextChanged()
     filterSearchResults()
 end sub
@@ -315,6 +309,9 @@ sub filterSearchResults()
     end if
 end sub
 
+' Selecciona un resultado de búsqueda usando los datos completos que ya se
+' descargaron de GitHub para armar el catálogo del buscador (sin pedir
+' nada más a ningún servidor).
 sub onSearchItemSelected()
     idx = m.searchResultsGrid.itemSelected
     if m.searchResultsRawData <> invalid and idx < m.searchResultsRawData.count()
@@ -322,16 +319,76 @@ sub onSearchItemSelected()
     end if
 end sub
 
+' Arma la pantalla de detalle de una película a partir de los datos que ya
+' vinieron completos en el JSON de GitHub (título, imagen, sinopsis, rating,
+' géneros y los links de video). No hace ninguna llamada adicional.
 sub showMovieDetails(data as object)
+    if data = invalid then return
+
+    ' Nueva API: el listado no trae streams; hay que llamar /extract
+    if (data.sources = invalid or data.sources.count() = 0) and data.extractUrl <> invalid and data.extractUrl <> ""
+        m.pendingMovieData = data
+        m.extractTask = CreateObject("roSGNode", "ApiTask")
+        m.extractTask.requestUrl = data.extractUrl
+        m.extractTask.observeField("response", "onExtractRetrieved")
+        m.extractTask.control = "RUN"
+        m.movieCounterLabel.text = "Cargando detalles..."
+        return
+    end if
+
+    openDetailsWithData(data)
+end sub
+
+sub onExtractRetrieved()
+    res = m.extractTask.response
+    data = m.pendingMovieData
+    if data = invalid then data = {}
+
+    if res <> invalid and res.status = "success"
+        if res.title <> invalid then data.title = res.title
+        if res.description <> invalid then data.description = res.description
+        if res.rating <> invalid then data.rating = res.rating
+        if res.genres <> invalid then data.genres = res.genres
+        if res.poster <> invalid then data.image = res.poster
+        data.sources = []
+        seenUrl = CreateObject("roAssociativeArray")
+
+        ' 1) streams del extract (los mas fiables: CDN directo)
+        if res.streams <> invalid
+            for each s in res.streams
+                addStreamSource(data.sources, seenUrl, s.url, s.type)
+            end for
+        end if
+
+        ' 2) alternativas del trace, excepto video.php (Cloudflare 403 en Roku)
+        if res.resolutionTrace <> invalid
+            for each t in res.resolutionTrace
+                if t.finalCdnUrl <> invalid then addStreamSource(data.sources, seenUrl, t.finalCdnUrl, "hls")
+                if t.streamUrl <> invalid then addStreamSource(data.sources, seenUrl, t.streamUrl, "hls")
+                if t.masterPlaylistUrl <> invalid then addStreamSource(data.sources, seenUrl, t.masterPlaylistUrl, "hls")
+            end for
+        end if
+    end if
+
+    openDetailsWithData(data)
+end sub
+
+sub openDetailsWithData(data as object)
     if data = invalid then return
 
     detailsContent = CreateObject("roSGNode", "ContentNode")
     detailsContent.title = data.title
     detailsContent.hdPosterUrl = getPosterUrl(data)
-    detailsContent.description = data.description
+    if data.description <> invalid then detailsContent.description = data.description else detailsContent.description = ""
     if data.rating <> invalid then detailsContent.rating = data.rating
     if data.year <> invalid then detailsContent.releaseDate = data.year
-    if data.quality <> invalid then detailsContent.shortDescription = data.quality
+    if data.quality <> invalid and data.quality <> ""
+        if detailsContent.description <> "" then
+            detailsContent.description = detailsContent.description + " | " + data.quality
+        else
+            detailsContent.description = data.quality
+        end if
+    end if
     if data.genres <> invalid then detailsContent.categories = data.genres
 
     m.currentStreams = []
@@ -339,7 +396,7 @@ sub showMovieDetails(data as object)
         for each src in data.sources
             streamItem = {}
             streamItem.url = src.url
-            streamItem.format = src.type
+            if src.type <> invalid then streamItem.format = src.type else streamItem.format = "hls"
             m.currentStreams.push(streamItem)
         end for
     end if
@@ -357,6 +414,7 @@ sub showInstructions()
     m.top.findNode("closeInstructionsBtn").setFocus(true)
 end sub
 
+' --- NAVEGACIÓN ---
 sub onMenuItemSelected()
     idx = m.menuList.itemSelected
     if idx = 0
@@ -396,10 +454,9 @@ sub onCountrySelected()
     m.viewMode = "channels"
     m.countryGroup.visible = false
     m.movieGrid.visible = true
-
-    m.titleLabel.text = "CANALES TV CABLE"
-    setChannelsUI()
-
+    if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = false
+    if m.navHintLabel <> invalid then m.navHintLabel.visible = false
+    if m.pageBar <> invalid then m.pageBar.visible = false
     m.m3uTask = CreateObject("roSGNode", "M3uTask")
     m.m3uTask.url = selected.description
     m.m3uTask.observeField("content", "onChannelsRetrieved")
@@ -410,12 +467,18 @@ sub onPlayPressed()
     if m.currentStreams <> invalid and m.currentStreams.count() > 0
         m.currentStreamIndex = 0
         tryPlayCurrentStream()
+    else
+        m.videoStatusLabel.text = "Video no disponible en este dispositivo."
+        m.videoStatusBox.visible = true
     end if
 end sub
 
+' Intenta reproducir el servidor actual (m.currentStreamIndex). Si ese
+' servidor está caído, onVideoStateChange() avanza automáticamente al
+' siguiente, hasta encontrar uno que funcione o agotar la lista.
 sub tryPlayCurrentStream()
     if m.currentStreams = invalid or m.currentStreamIndex >= m.currentStreams.count()
-        m.videoStatusLabel.text = "No se pudo reproducir con ningún servidor disponible."
+        m.videoStatusLabel.text = "Video no disponible en este dispositivo."
         m.videoStatusBox.visible = true
         m.videoPlayer.visible = false
         return
@@ -434,16 +497,34 @@ sub tryPlayCurrentStream()
     playVideo(stream.url, stream.format)
 end sub
 
+' Si el servidor actual falla, decide cómo seguir según el TIPO de error:
+' - Si el error sugiere que el contenido está mal etiquetado (formato/
+'   contenedor incorrecto), reintenta la MISMA url con el otro formato
+'   común antes de rendirse con ese servidor.
+' - Si es un error de red/HTTP real, pasa directo al siguiente servidor
+'   (reintentar con otro formato no va a arreglar un servidor caído).
 sub onVideoStateChange()
     state = m.videoPlayer.state
     if state = "error"
+        ' Log de diagnóstico: conectate por telnet al puerto 8085 de tu
+        ' Roku para ver esto en vivo la próxima vez que un servidor falle.
         print "=== ERROR DE REPRODUCCION ==="
-        print "Servidor intentado: "; m.currentStreamIndex + 1; " de "; m.currentStreams.count()
-        print "URL: "; m.videoPlayer.content.url
-        print "Formato declarado: "; m.videoPlayer.content.streamFormat
+        if m.currentStreams <> invalid and m.currentStreamIndex <> invalid
+            print "Servidor intentado: "; m.currentStreamIndex + 1; " de "; m.currentStreams.count()
+        end if
+        if m.videoPlayer.content <> invalid
+            print "URL: "; m.videoPlayer.content.url
+            print "Formato declarado: "; m.videoPlayer.content.streamFormat
+        end if
         print "errorCode: "; m.videoPlayer.errorCode
         print "errorMsg: "; m.videoPlayer.errorMsg
         print "=============================="
+
+        if m.currentStreams = invalid or m.currentStreamIndex = invalid
+            m.videoStatusLabel.text = "Video no disponible en este dispositivo."
+            m.videoStatusBox.visible = true
+            return
+        end if
 
         msg = LCase(m.videoPlayer.errorMsg)
         esProblemaDeFormato = (instr(1, msg, "malformed") > 0) or (instr(1, msg, "codec") > 0) or (instr(1, msg, "container") > 0)
@@ -469,6 +550,8 @@ sub onVideoStateChange()
     end if
 end sub
 
+' "format" es opcional: los canales de TV/países (listas M3U) siempre son
+' HLS y no lo mandan, así que si no se especifica se usa "hls" por defecto.
 sub playVideo(url as String, format = "hls" as String)
     videoContent = CreateObject("roSGNode", "ContentNode")
     videoContent.url = url
@@ -542,15 +625,72 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     return false
 end function
 
+' Algunas APIs no siempre usan el mismo nombre de campo para la imagen
+' (por ejemplo "image" en el listado y "poster" en el detalle). Esta función
+' prueba los nombres más comunes hasta encontrar uno con datos.
+
+' Une featured + movies del JSON de zonaapp y quita duplicados por titulo
+
+sub addStreamSource(sources as object, seenUrl as object, url as dynamic, fmt as dynamic)
+    if url = invalid or url = "" then return
+    u = url
+    if type(u) <> "roString" and type(u) <> "String" then return
+    ' video.php de zonaaps devuelve Cloudflare challenge (403); Roku no puede usarlo
+    if Instr(1, LCase(u), "zonaaps.com/video.php") > 0 then return
+    if Instr(1, LCase(u), "cdn-cgi/challenge") > 0 then return
+    if seenUrl.DoesExist(u) then return
+    seenUrl.AddReplace(u, true)
+    src = CreateObject("roAssociativeArray")
+    src.url = u
+    if fmt <> invalid and fmt <> "" then src.type = fmt else src.type = "hls"
+    ' URLs tipo .tar?r_file=chunklist de Rumble fallan mucho en Roku (-3); igual se prueban al final
+    sources.Push(src)
+end sub
+
+function flattenMovieList(res as object) as object
+    list = CreateObject("roArray", 0, true)
+    seen = CreateObject("roAssociativeArray")
+    if res = invalid then return list
+
+    buckets = CreateObject("roArray", 0, true)
+    if res.DoesExist("featured") and res.featured <> invalid then buckets.Push(res.featured)
+    if res.DoesExist("movies") and res.movies <> invalid then buckets.Push(res.movies)
+    ' API vieja envuelta: solo movies
+    if buckets.Count() = 0 and res.DoesExist("items") and res.items <> invalid then buckets.Push(res.items)
+
+    for each bucket in buckets
+        if bucket <> invalid
+            for each m_item in bucket
+                if m_item <> invalid and m_item.DoesExist("title") and m_item.title <> invalid and m_item.title <> ""
+                    key = LCase(m_item.title)
+                    if seen.DoesExist(key) = false
+                        seen.AddReplace(key, true)
+                        list.Push(m_item)
+                    end if
+                end if
+            end for
+        end if
+    end for
+    return list
+end function
+
 function getPosterUrl(data as object) as string
     posibles = ["image", "poster", "img", "thumbnail", "cover", "poster_url", "imageUrl", "thumb"]
     for each campo in posibles
         if data.DoesExist(campo)
             valor = data[campo]
             if valor <> invalid and valor <> ""
-                return valor
+                return proxyImageUrl(valor)
             end if
         end if
     end for
     return ""
+end function
+
+' Roku a menudo no carga imagenes directas de zonaaps; el proxy del worker si
+function proxyImageUrl(url as string) as string
+    if url = invalid or url = "" then return ""
+    if Instr(1, LCase(url), "workers.dev/proxy") > 0 then return url
+    enc = CreateObject("roUrlTransfer")
+    return "https://zonaapp.ikkihkurogane.workers.dev/proxy?url=" + enc.Escape(url)
 end function

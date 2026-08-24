@@ -2,7 +2,8 @@
 <component name="ApiTask" extends="Task">
   <interface>
     <field id="requestUrl" type="string" />
-    <field id="response" type="array" />
+    <!-- assocarray: la API nueva devuelve objeto {movies, featured...}; la vieja array se envuelve -->
+    <field id="response" type="assocarray" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/ApiTask.brs" />
 </component>

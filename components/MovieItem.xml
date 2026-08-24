@@ -76,7 +76,6 @@
         width="177"
         height="40"
         text="Sin portada"
-        size="16"
         color="0x888888FF"
         horizAlign="center"
         vertAlign="center" />
@@ -96,7 +95,6 @@
         translation="[4, 258]"
         width="177"
         height="38"
-        size="16"
         color="0xCCCCCCFF"
         horizAlign="center"
         wrap="true"
