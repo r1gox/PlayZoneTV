@@ -468,8 +468,9 @@ sub onPlayPressed()
         m.currentStreamIndex = 0
         tryPlayCurrentStream()
     else
-        m.videoStatusLabel.text = "Video no disponible en este dispositivo."
+        m.videoStatusLabel.text = "No se pudo reproducir." + chr(10) + "Esta película no tiene servidores disponibles."
         m.videoStatusBox.visible = true
+        m.videoPlayer.visible = false
     end if
 end sub
 
@@ -478,7 +479,7 @@ end sub
 ' siguiente, hasta encontrar uno que funcione o agotar la lista.
 sub tryPlayCurrentStream()
     if m.currentStreams = invalid or m.currentStreamIndex >= m.currentStreams.count()
-        m.videoStatusLabel.text = "Video no disponible en este dispositivo."
+        m.videoStatusLabel.text = "No se pudo reproducir esta película." + chr(10) + "Prueba otra o pulsa ATRÁS para volver."
         m.videoStatusBox.visible = true
         m.videoPlayer.visible = false
         return
@@ -521,7 +522,7 @@ sub onVideoStateChange()
         print "=============================="
 
         if m.currentStreams = invalid or m.currentStreamIndex = invalid
-            m.videoStatusLabel.text = "Video no disponible en este dispositivo."
+            m.videoStatusLabel.text = "No se pudo reproducir esta película." + chr(10) + "Prueba otra o pulsa ATRÁS para volver."
             m.videoStatusBox.visible = true
             return
         end if

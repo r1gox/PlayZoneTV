@@ -29,7 +29,16 @@
 
     <!-- 2. CONTENIDO PRINCIPAL -->
     <Group id="mainContent" visible="false">
-      <Label id="titleLabel" translation="[80, 20]" size="35" color="0xFFFFFFFF" bold="true" />
+      <!-- Icono claqueta púrpura (alineado con el título) -->
+      <Poster
+          id="headerIcon"
+          uri="pkg:/images/icons/film.png"
+          width="36"
+          height="36"
+          translation="[42, 22]"
+          loadDisplayMode="scaleToFit"
+          visible="true" />
+      <Label id="titleLabel" translation="[88, 24]" size="32" color="0xFFFFFFFF" bold="true" />
       <Label id="movieCounterLabel" translation="[0, 30]" size="20" color="0xAAAAAAFF" horizAlign="center" width="1280" />
       <Label id="navHintLabel" text="Usa el menú (Izquierda) para navegar" translation="[790, 30]" size="20" color="0x7F5AF0FF" bold="true" />
 
@@ -103,8 +112,8 @@
 
     <DetailsScreen id="detailsScreen" visible="false" />
     <Video id="videoPlayer" width="1280" height="720" visible="false" />
-    <Rectangle id="videoStatusBox" width="600" height="70" color="0x000000CC" translation="[340, 620]" visible="false">
-        <Label id="videoStatusLabel" width="600" height="70" horizAlign="center" vertAlign="center" size="22" color="0xFFFFFFFF" />
+    <Rectangle id="videoStatusBox" width="720" height="90" color="0x000000EE" translation="[280, 300]" visible="false">
+        <Label id="videoStatusLabel" width="720" height="90" horizAlign="center" vertAlign="center" size="24" color="0xFFFFFFFF" wrap="true" />
     </Rectangle>
   </children>
 </component>
