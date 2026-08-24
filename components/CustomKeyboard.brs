@@ -1,10 +1,9 @@
 sub init()
     m.keyGrid = m.top.findNode("keyGrid")
     m.displayText = m.top.findNode("displayText")
+    m.currentText = ""
+    m.busy = false
 
-    ' Definición de teclas: letras, números, y ESPACIO/BORRAR como una
-    ' tecla más de la grilla (así se navegan con las mismas flechas,
-    ' sin combinaciones especiales de control remoto).
     keys = ["A", "B", "C", "D", "E", "F",
             "G", "H", "I", "J", "K", "L",
             "M", "N", "O", "P", "Q", "R",
@@ -19,61 +18,59 @@ sub init()
         item.title = char
     end for
     m.keyGrid.content = content
-
-    ' Eventos
     m.keyGrid.observeField("itemSelected", "onKeySelected")
-
-    m.currentText = ""
-    ' Nota: ya no se hace setFocus aquí. Este componente puede estar
-    ' instanciado dentro de una pantalla oculta (como el buscador dentro de
-    ' MainScene); si se enfoca a sí mismo apenas se construye, le roba el
-    ' foco del control remoto a lo que sea que esté visible en pantalla.
-    ' Quien lo use debe llamar keyboardNode.findNode("keyGrid").setFocus(true)
-    ' cuando realmente lo muestre.
 end sub
 
 sub onKeySelected()
+    if m.busy = true then return
     idx = m.keyGrid.itemSelected
+    if idx = invalid or idx < 0 then return
+    if m.keyGrid.content = invalid then return
+    if idx >= m.keyGrid.content.getChildCount() then return
+
+    m.busy = true
     key = m.keyGrid.content.getChild(idx).title
 
     if key = "ESP"
-        m.currentText += " "
+        m.currentText = m.currentText + " "
     else if key = "DEL"
-        if m.currentText.len() > 0
-            m.currentText = m.currentText.left(m.currentText.len() - 1)
+        if Len(m.currentText) > 0
+            m.currentText = Left(m.currentText, Len(m.currentText) - 1)
         end if
     else
-        m.currentText += key
+        m.currentText = m.currentText + key
     end if
 
-    update()
-end sub
-
-sub update()
-    m.displayText.text = m.currentText
+    if m.displayText <> invalid then m.displayText.text = m.currentText
+    ' Notifica al MainScene (dispara el debounce, no el filtro directo)
     m.top.text = m.currentText
+    m.busy = false
 end sub
 
-' Soporte para el teclado del teléfono en la app de Roku: cuando escribís
-' ahí, Roku manda cada letra/número como un evento de tecla "literal" (un
-' caracter individual), y el backspace como su propia tecla. Esto se suma
-' a la navegación con flechas + OK de la grilla de arriba; no la reemplaza.
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
 
     if LCase(key) = "backspace"
-        if m.currentText.len() > 0
-            m.currentText = m.currentText.left(m.currentText.len() - 1)
-            update()
+        if m.busy = true then return true
+        m.busy = true
+        if Len(m.currentText) > 0
+            m.currentText = Left(m.currentText, Len(m.currentText) - 1)
         end if
+        if m.displayText <> invalid then m.displayText.text = m.currentText
+        m.top.text = m.currentText
+        m.busy = false
         return true
     end if
 
-    if key.Len() = 1
+    if Len(key) = 1
         code = Asc(key)
-        if code >= 32 ' caracter imprimible (letras, números, espacio, acentos, etc.)
-            m.currentText += key
-            update()
+        if code >= 32
+            if m.busy = true then return true
+            m.busy = true
+            m.currentText = m.currentText + UCase(key)
+            if m.displayText <> invalid then m.displayText.text = m.currentText
+            m.top.text = m.currentText
+            m.busy = false
             return true
         end if
     end if

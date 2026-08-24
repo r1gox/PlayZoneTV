@@ -88,6 +88,13 @@ sub init()
     m.searchKeyboard.observeField("text", "onSearchTextChanged")
     m.searchResultsGrid.observeField("itemSelected", "onSearchItemSelected")
 
+    ' Debounce del buscador: no filtrar en cada tecla (traba el Roku)
+    m.searchTimer = CreateObject("roSGNode", "Timer")
+    m.searchTimer.repeat = false
+    m.searchTimer.duration = 0.4
+    m.searchTimer.observeField("fire", "onSearchTimerFire")
+    m.searchFilterBusy = false
+
     checkForUpdates()
 end sub
 
@@ -292,38 +299,77 @@ end sub
 ' Se dispara solo cuando cambia el texto del CustomKeyboard (su propio
 ' teclado sigue funcionando exactamente igual que antes).
 sub onSearchTextChanged()
+    ' Solo reinicia el timer; el filtro corre al soltar el teclado un momento
+    if m.searchTimer <> invalid
+        m.searchTimer.control = "stop"
+        m.searchTimer.control = "start"
+    end if
+end sub
+
+sub onSearchTimerFire()
     filterSearchResults()
 end sub
 
 sub filterSearchResults()
-    query = LCase(m.searchKeyboard.text)
+    if m.searchFilterBusy = true then return
+    if m.searchKeyboard = invalid then return
+    if m.searchResultsGrid = invalid then return
+
+    m.searchFilterBusy = true
+
+    raw = m.searchKeyboard.text
+    if raw = invalid then raw = ""
+    query = LCase(raw)
+
     content = CreateObject("roSGNode", "ContentNode")
     m.searchResultsRawData = []
     count = 0
 
-    if query <> "" and m.allMovies.count() > 0
-        for each mv in m.allMovies
-            if instr(1, LCase(mv.title), query) > 0
+    if m.allMovies = invalid or m.allMovies.count() = 0
+        m.searchResultsGrid.content = content
+        if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando catálogo..."
+        m.searchFilterBusy = false
+        return
+    end if
+
+    if query = ""
+        m.searchResultsGrid.content = content
+        if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Escribe para buscar (" + m.allMovies.count().toStr() + " títulos)"
+        m.searchFilterBusy = false
+        return
+    end if
+
+    maxResults = 20
+    total = m.allMovies.count()
+    i = 0
+    while i < total and count < maxResults
+        mv = m.allMovies[i]
+        i = i + 1
+        if mv <> invalid and mv.title <> invalid and mv.title <> ""
+            if Instr(1, LCase(mv.title), query) > 0
                 item = content.CreateChild("ContentNode")
                 item.title = mv.title
-                item.hdPosterUrl = getPosterUrl(mv)
+                if mv.image <> invalid then
+                    item.hdPosterUrl = mv.image
+                else if mv.poster <> invalid then
+                    item.hdPosterUrl = mv.poster
+                else
+                    item.hdPosterUrl = ""
+                end if
                 m.searchResultsRawData.push(mv)
-                count++
-                if count >= 60 then exit for
+                count = count + 1
             end if
-        end for
-    end if
+        end if
+    end while
 
     m.searchResultsGrid.content = content
-
-    if query <> "" and m.allMovies.count() > 0
-        m.movieCounterLabel.text = count.toStr() + " resultados para '" + query + "'"
+    if m.movieCounterLabel <> invalid
+        m.movieCounterLabel.text = count.toStr() + " resultados"
     end if
+
+    m.searchFilterBusy = false
 end sub
 
-' Selecciona un resultado de búsqueda usando los datos completos que ya se
-' descargaron de GitHub para armar el catálogo del buscador (sin pedir
-' nada más a ningún servidor).
 sub onSearchItemSelected()
     idx = m.searchResultsGrid.itemSelected
     if m.searchResultsRawData <> invalid and idx < m.searchResultsRawData.count()

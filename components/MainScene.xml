@@ -92,7 +92,7 @@
             <Label text="Los resultados de la busqueda aparecen a la derecha del teclado, listos para abrir." size="20" color="0xFFFFFFFF" />
             <Label text="Volver: presiona ATRAS para cerrar el menu o regresar a la pantalla anterior." size="20" color="0xFFFFFFFF" />
             <Label text=" " size="10" color="0xFFFFFFFF" />
-            <Label text="Contacto y soporte - Telegram: @I_am3301" size="22" color="0x7F5AF0FF" bold="true" />
+            <Label text="Contacto y soporte - Telegram: @I_amr1x" size="22" color="0x7F5AF0FF" bold="true" />
         </LayoutGroup>
         <Button id="closeInstructionsBtn" text="ENTENDIDO" translation="[40, 540]" minWidth="200" showFocusFootprint="true" />
     </Group>
