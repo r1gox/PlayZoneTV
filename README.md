@@ -15,25 +15,32 @@
 
 ## 📌 ¿Qué es PlayZoneTV?
 
-**PlayZoneTV** es un canal privado para dispositivos **Roku**, desarrollado en **BrightScript / SceneGraph**. Permite navegar y reproducir:
+**PlayZoneTV** es un canal privado para dispositivos **Roku**, desarrollado en **BrightScript / SceneGraph**.
 
-- 🎥 **Películas** — catálogo paginado, consumido desde una API externa.
-- 📡 **Canales de TV por cable** — vía listas M3U.
-- 🌎 **TV por países** — selección de país y reproducción de su lista IPTV pública.
-- 🔎 **Buscador** — teclado en pantalla (control remoto o teclado del celular) que filtra el catálogo completo en tiempo real.
-- 📖 **Instrucciones** integradas dentro de la propia app.
+Permite navegar y reproducir:
 
-No es una app oficial de Roku Channel Store: se instala manualmente en modo desarrollador (**sideload**), como se explica más abajo.
+| Sección | Descripción |
+|--------|-------------|
+| 🎥 **Películas** | Catálogo paginado desde API externa, con detalle, rating, géneros y sinopsis |
+| 📡 **Canales TV cable** | Listas M3U de canales |
+| 🌎 **TV por países** | IPTV público por país |
+| 🔎 **Buscar** | Teclado en pantalla; filtra el catálogo en tiempo real |
+| 📖 **Instrucciones** | Guía de uso integrada |
+
+No es una app de la Roku Channel Store: se instala por **sideload** (modo desarrollador).
 
 ---
 
-## 🖼️ Vista previa
+## ✨ Características
 
-> Agregá tus propias capturas de pantalla acá una vez que la tengas corriendo en tu Roku. Sugerencia de carpeta: `docs/screenshots/`.
-
-| Portal principal | Catálogo de películas | Buscador |
-|:---:|:---:|:---:|
-| _(captura pendiente)_ | _(captura pendiente)_ | _(captura pendiente)_ |
+- Portal de inicio con tarjetas e iconos por sección
+- Header dinámico: el icono cambia según la sección (claqueta, TV, globo, lupa)
+- Detalle de película con rating, año, géneros y botón **REPRODUCIR** centrado
+- Si un video no es compatible con Roku: mensaje claro y salida (sin reintentos infinitos)
+- Placeholder gris cuando una portada no carga
+- Menú lateral (Inicio, páginas, Buscar)
+- Buscador con teclado en pantalla o teclado del celular (app Roku)
+- UI orientada a **HD 1280×720**
 
 ---
 
@@ -41,130 +48,146 @@ No es una app oficial de Roku Channel Store: se instala manualmente en modo desa
 
 ```
 PlayZoneTV/
-├── manifest                     # Metadatos del canal (nombre, versión, íconos)
+├── manifest                      # Nombre, versión, iconos, splash
 ├── source/
-│   └── main.brs                 # Punto de entrada de la app
+│   └── main.brs                  # Entrada de la app
 ├── components/
-│   ├── MainScene.xml / .brs     # Pantalla principal: portal, menú, navegación general
-│   ├── PortalItem.xml           # Tarjeta de cada opción del portal de inicio
-│   ├── SideMenuItem.xml / .brs  # Ítem del menú lateral (Inicio, Buscar, etc.)
-│   ├── CustomKeyboard.xml / .brs# Teclado en pantalla para el buscador
-│   ├── KeyItem.xml              # Tecla individual del teclado
-│   ├── DetailsScreen.xml / .brs # Pantalla de detalle de una película/canal
-│   ├── ApiTask.xml / .brs       # Tarea asíncrona para consumir la API HTTP (JSON)
-│   └── M3uTask.xml / .brs       # Tarea asíncrona para descargar y parsear listas M3U
+│   ├── MainScene.xml / .brs      # Portal, catálogo, menú, video
+│   ├── PortalItem.xml            # Tarjetas del portal
+│   ├── MovieItem.xml             # Poster del catálogo (+ placeholder)
+│   ├── DetailsScreen.xml / .brs  # Detalle de película
+│   ├── SideMenuItem.xml / .brs   # Menú lateral
+│   ├── CustomKeyboard.xml / .brs # Teclado del buscador
+│   ├── KeyItem.xml
+│   ├── ApiTask.xml / .brs        # Peticiones HTTP/JSON
+│   └── M3uTask.xml / .brs        # Listas M3U
 └── images/
-    ├── main_icon_hd.png / _sd.png
-    └── splash_hd.png / _sd.png
+    ├── main_icon_hd.png          # Icono canal HD (290×218)
+    ├── main_icon_sd.png          # Icono canal SD
+    ├── splash_hd.png / splash_sd.png
+    └── icons/
+        ├── film.png              # Películas
+        ├── tv.png                # Canales
+        ├── globe.png             # Países
+        ├── search.png            # Buscar
+        └── info.png              # Instrucciones
 ```
 
 ---
 
 ## ⚙️ Requisitos
 
-- Un **Roku** físico conectado a la misma red Wi-Fi/LAN que tu computadora (no funciona en el emulador oficial de Roku para PC/Mac sin el dispositivo real).
-- Acceso al router o simplemente saber la **IP local del Roku**.
-- Una computadora con navegador web (no hace falta instalar nada más para el sideload).
-- Opcional para desarrollo: [Visual Studio Code](https://code.visualstudio.com/) + extensión **BrightScript Language** (roku-deploy / vscode-brightscript-language), o el CLI `roku-deploy`.
+- **Roku físico** en la misma red Wi‑Fi/LAN que tu PC  
+  (el emulador oficial no sustituye un dispositivo real para sideload completo)
+- Conocer la **IP local** del Roku
+- Navegador web en el PC
+- Opcional: [VS Code](https://code.visualstudio.com/) + extensión **BrightScript Language** / `roku-deploy`
 
 ---
 
-## 🔓 Paso 1 — Activar el modo desarrollador en el Roku
+## 🔓 Paso 1 — Modo desarrollador en el Roku
 
-1. Con el control remoto del Roku, apuntá a la pantalla de inicio.
-2. Presioná esta combinación de teclas **en orden**, sin pausas largas:
+1. En la pantalla de inicio del Roku, con el control:
+2. Secuencia (sin pausas largas):
 
-   ```
-   Inicio  x3   →   Arriba  x2   →   Izquierda  →   Derecha  →   Izquierda  →   Derecha  →   Izquierda
-   ```
+```text
+Inicio ×3  →  Arriba ×2  →  Izquierda  →  Derecha  →  Izquierda  →  Derecha  →  Izquierda
+```
 
-3. Va a aparecer una pantalla llamada **"Developer Application Installer"** con:
-   - Un usuario (`rokudev` por defecto).
-   - Una contraseña que vos elegís.
-   - La **dirección IP** del Roku (anotala, la vas a necesitar).
-4. Aceptá los términos y confirmá. El Roku se reinicia y queda en modo desarrollador.
+3. Aparece **Developer Application Installer**
+   - Usuario: `rokudev`
+   - Contraseña: la que configures
+   - Anota la **IP** del Roku
+4. Acepta y reinicia
 
-> ⚠️ Si tu Roku ya estuvo antes en modo desarrollador, puede que directamente te muestre la pantalla del instalador sin pedir la combinación de nuevo.
+> Si ya estaba en modo desarrollador, puede abrir el instalador directamente.
 
 ---
 
 ## 📦 Paso 2 — Empaquetar el canal
 
-1. Descargá o cloná este repositorio.
-2. Comprimí el **contenido** de la carpeta del proyecto (no la carpeta en sí) en un `.zip`. Es decir, al abrir el zip deberías ver directamente `manifest`, `source/`, `components/`, `images/` — sin una carpeta extra por encima.
+1. Clona o descarga este repositorio.
+2. Comprime el **contenido** de la carpeta del proyecto (no la carpeta padre).  
+   Al abrir el zip deben verse `manifest`, `source/`, `components/`, `images/`.
 
-   ```bash
-   cd PlayZoneTV
-   zip -r ../PlayZone.zip . -x "*.DS_Store"
-   ```
-
----
-
-## 📲 Paso 3 — Instalar el canal en el Roku (sideload)
-
-1. En tu computadora, abrí el navegador y entrá a:
-
-   ```
-   http://<IP-DEL-ROKU>
-   ```
-
-   (reemplazando `<IP-DEL-ROKU>` por la IP que anotaste en el paso 1).
-
-2. Iniciá sesión con el usuario `rokudev` y la contraseña que configuraste.
-3. En la sección **"Upload"**, hacé clic en **"Choose File"** y seleccioná el `PlayZone.zip` que armaste.
-4. Presioná **"Install"** (o "Replace" si ya había una versión instalada antes).
-5. A los pocos segundos, el canal **PlayZone** va a abrirse solo en el Roku, y va a quedar disponible en la lista de canales privados (**Sideloaded Channels**) de tu Home.
+```bash
+cd PlayZoneTV
+zip -r ../PlayZone.zip . -x "*.DS_Store" -x "**/.git/**"
+```
 
 ---
 
-## 🕹️ Cómo se usa la app
+## 📲 Paso 3 — Instalar (sideload)
 
-- **Flechas del control**: para moverte entre opciones.
-- **OK / Select**: para elegir una película, canal, país o tecla.
-- **Izquierda** (sobre el primer póster o país de la lista): abre el **menú lateral**.
-- **Menú lateral**: Inicio · Siguiente página · Página anterior · Buscar · Cerrar.
-- **Atrás**: cierra el menú si está abierto, o vuelve a la pantalla anterior.
-- **Buscador**: se navega con flechas + OK sobre el teclado en pantalla, o directamente tipeando desde el **teclado del celular** en la app oficial de Roku (control remoto por celular).
+1. En el PC, abre el navegador:
 
-Estas mismas instrucciones están disponibles dentro de la app, en la opción **"Instrucciones"** del portal principal.
+```text
+http://<IP-DEL-ROKU>
+```
+
+2. Inicia sesión: usuario `rokudev` + tu contraseña.
+3. **Upload** → elige `PlayZone.zip` → **Install** (o **Replace**).
+4. El canal **PlayZoneTV** se abre y queda en **Sideloaded Channels**.
 
 ---
 
-## 🔧 Desarrollo
+## 🕹️ Controles
 
-Si querés modificar el proyecto:
+| Acción | Control |
+|--------|---------|
+| Moverse | Flechas |
+| Seleccionar | OK |
+| Menú lateral | Izquierda (en el primer ítem de la fila) |
+| Volver | Atrás |
+| Buscar | Teclado en pantalla u app Roku en el celular |
 
-1. Cloná el repo y abrilo en VS Code.
-2. Instalá la extensión **BrightScript Language** para autocompletado, debugging remoto y despliegue directo desde el editor (`Cmd/Ctrl + Shift + P` → *"Configure Launch"*, apuntando a la IP y contraseña de tu Roku).
-3. Cada vez que guardes cambios, podés volver a desplegar sin generar el `.zip` manualmente usando la extensión (`F5`), o repitiendo el sideload manual del Paso 3.
-4. Para ver los logs y errores en vivo (muy útil si algo no responde), conectate por telnet al puerto **8085** de tu Roku:
-
-   ```bash
-   telnet <IP-DEL-ROKU> 8085
-   ```
+Menú lateral: **Inicio · Siguiente página · Página anterior · Buscar · Cerrar**.
 
 ---
 
 ## 🌐 Fuentes de datos
 
-La app consume:
+- **Películas:** API HTTP/JSON externa (listado + extract de streams cuando aplica).
+- **TV cable / países:** listas **M3U** públicas (IPTV).
 
-- Una API externa (HTTP/JSON) para el catálogo de películas y sus detalles/servidores de reproducción.
-- Listas **M3U** públicas para los canales de TV por cable y por país (formato estándar IPTV).
+PlayZoneTV **no aloja** el contenido: solo consulta y reproduce fuentes externas.
 
-No aloja ni almacena contenido propio: solo consulta y muestra fuentes externas ya existentes.
+> Algunos enlaces pueden no ser compatibles con el reproductor de Roku. En ese caso se muestra un mensaje y se puede volver con **Atrás**.
+
+---
+
+## 🔧 Desarrollo
+
+1. Clona el repo y ábrelo en VS Code.
+2. Extensión BrightScript: deploy con **F5** (configura IP y contraseña del Roku).
+3. Logs en vivo:
+
+```bash
+telnet <IP-DEL-ROKU> 8085
+```
+
+---
+
+## 📋 Manifest (resumen)
+
+| Campo | Valor típico |
+|-------|----------------|
+| `title` | PlayZoneTV |
+| `ui_resolutions` | hd |
+| Iconos | `mm_icon_focus_hd` / `_sd` |
+| Splash | `splash_screen_hd` / `_sd` |
+
+Tamaños recomendados de icono de canal: **HD 290×218**, **SD 214×144**.
 
 ---
 
 ## 🤝 Contribuciones
 
-¿Encontraste un bug o tenés una idea para mejorar PlayZoneTV? Abrí un **Issue** o mandá un **Pull Request**. Toda ayuda es bienvenida.
+Bugs o ideas: abre un **Issue** o un **Pull Request**.
 
 ---
 
 ## 📬 Contacto
-
-Para soporte, dudas o sugerencias:
 
 **Telegram:** [@I_am3301](https://t.me/I_am3301)
 
@@ -172,10 +195,12 @@ Para soporte, dudas o sugerencias:
 
 ## 📄 Licencia
 
-Este proyecto se distribuye bajo licencia **MIT**. Ver el archivo `LICENSE` para más detalles.
+Distribuido bajo licencia **MIT**. Ver `LICENSE` si está incluida en el repositorio.
+
+---
 
 <div align="center">
 
-Hecho con ❤️ para la comunidad Roku.
+Hecho con ❤️ para la comunidad Roku · **PlayZoneTV**
 
 </div>
