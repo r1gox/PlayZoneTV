@@ -72,10 +72,9 @@ No está en la Roku Channel Store: se instala por **sideload** (modo desarrollad
 
 Descarga el canal empaquetado desde MediaFire:
 
-> **🔗 [Descargar PlayZoneTV (ZIP)](https://www.mediafire.com/)**  
+> **🔗 [Descargar PlayZoneTV (ZIP)]([https://www.mediafire.com/](https://www.mediafire.com/file/1jzgde3cx2hfpmt/PlayZoneTV.zip/file))**  
 > *(reemplaza este enlace por tu URL de MediaFire cuando lo subas)*
 
-El ZIP debe contener: `manifest`, `source/`, `components/`, `images/`.
 
 ---
 
