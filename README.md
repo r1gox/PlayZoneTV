@@ -30,8 +30,6 @@ No está en la Roku Channel Store: se instala por **sideload** (modo desarrollad
 
 ## 🖼️ Capturas de pantalla
 
-> Sustituye las rutas por tus imágenes (por ejemplo en una carpeta `docs/screenshots/` del repo, o enlaces directos).
-
 ### 🏠 Menú principal (portal)
 
 ![Menú principal](docs/screenshots/menu.png)
@@ -155,7 +153,7 @@ Si un video no se puede reproducir en Roku, verás un mensaje y podrás volver c
 
 ## 📬 Contacto
 
-Dudas o soporte: **Telegram** [@I_am3301](https://t.me/I_am3301)
+Dudas o soporte: **Telegram** [@I_am3301](https://t.me/I_amr1x)
 
 ---
 
