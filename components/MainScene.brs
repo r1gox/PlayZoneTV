@@ -24,6 +24,11 @@ sub init()
     m.searchKeyboard = m.top.findNode("searchKeyboard")
     m.searchResultsGrid = m.top.findNode("searchResultsGrid")
 
+    ' Nodos de interfaz (header + page bar)
+    m.headerIcon = m.top.findNode("headerIcon")
+    m.navHintLabel = m.top.findNode("navHintLabel")
+    m.pageBar = m.top.findNode("pageBar")
+
     ' 1. Configurar Portal
     portalContent = CreateObject("roSGNode", "ContentNode")
     addItem(portalContent, "Películas")
@@ -66,7 +71,7 @@ sub init()
     m.currentPage = 1
     m.portalGrid.setFocus(true)
 
-    ' Estado del buscador (catálogo cacheado para filtrar sin recargar la API en cada letra)
+    ' Estado del buscador
     m.allMovies = []
     m.moviesRawData = []
     m.searchResultsRawData = []
@@ -87,11 +92,6 @@ sub init()
     checkForUpdates()
 end sub
 
-' --- CHEQUEO DE ACTUALIZACIONES ---
-' Como este canal se instala manualmente (sideload), Roku no lo actualiza
-' solo. Al abrir la app, consulta un archivo version.json en GitHub y lo
-' compara contra la version instalada. Si hay una mas nueva, muestra un
-' aviso discreto en el portal (no bloquea nada, se puede seguir usando).
 sub checkForUpdates()
     appInfo = CreateObject("roAppInfo")
     m.installedVersion = appInfo.GetVersion()
@@ -138,6 +138,22 @@ sub showPortal()
     m.portalGrid.setFocus(true)
 end sub
 
+' UI de películas: header completo + página
+sub setMoviesUI()
+    m.headerIcon.visible = true
+    m.movieCounterLabel.visible = true
+    m.navHintLabel.visible = true
+    m.pageBar.visible = true
+end sub
+
+' UI de canales: solo título + icono (sin contador, sin menú, sin página)
+sub setChannelsUI()
+    m.headerIcon.visible = true
+    m.movieCounterLabel.visible = false
+    m.navHintLabel.visible = false
+    m.pageBar.visible = false
+end sub
+
 ' --- SECCIONES ---
 sub loadMovies(page as Integer)
     m.viewMode = "movies"
@@ -147,16 +163,16 @@ sub loadMovies(page as Integer)
     m.movieGrid.visible = true
     m.countryGroup.visible = false
     m.searchGroup.visible = false
-    m.titleLabel.text = "PlayZone - Películas"
+
+    m.titleLabel.text = "PLAYZONE - PELÍCULAS"
+    setMoviesUI()
+
     m.apiTask = CreateObject("roSGNode", "ApiTask")
     m.apiTask.requestUrl = "https://raw.githubusercontent.com/r1gox/PlayZone-Api/main/movies/page-" + page.toStr() + ".json"
     m.apiTask.observeField("response", "onMoviesRetrieved")
     m.apiTask.control = "RUN"
 end sub
 
-' Cada página del repo de GitHub ya trae un ARRAY con todo lo necesario por
-' película (título, imagen, rating, sinopsis, géneros y los links de video),
-' así que no hace falta pedir nada más al seleccionar una.
 sub onMoviesRetrieved()
     res = m.apiTask.response
     if res <> invalid
@@ -181,7 +197,10 @@ sub loadCable()
     m.movieGrid.visible = true
     m.countryGroup.visible = false
     m.searchGroup.visible = false
+
     m.titleLabel.text = "CANALES TV CABLE"
+    setChannelsUI()
+
     m.m3uTask = CreateObject("roSGNode", "M3uTask")
     m.m3uTask.url = "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u"
     m.m3uTask.observeField("content", "onChannelsRetrieved")
@@ -197,6 +216,11 @@ sub showCountryList()
     m.searchGroup.visible = false
     m.titleLabel.text = "IPTV POR PAÍSES"
 
+    m.headerIcon.visible = true
+    m.movieCounterLabel.visible = false
+    m.navHintLabel.visible = false
+    m.pageBar.visible = false
+
     content = CreateObject("roSGNode", "ContentNode")
     for each c in m.countries
         item = content.CreateChild("ContentNode")
@@ -207,10 +231,6 @@ sub showCountryList()
     m.countryList.setFocus(true)
 end sub
 
-' --- BUSCADOR ---
-' Reutiliza el mismo endpoint de listado que ya usa la app (loadMovies) y el
-' componente CustomKeyboard existente. No modifica el flujo de películas,
-' canales ni países: solo agrega una vista nueva.
 sub showSearch()
     m.viewMode = "search"
     m.portalGroup.visible = false
@@ -219,6 +239,11 @@ sub showSearch()
     m.countryGroup.visible = false
     m.searchGroup.visible = true
     m.titleLabel.text = "Buscar Películas"
+
+    m.headerIcon.visible = true
+    m.movieCounterLabel.visible = true
+    m.navHintLabel.visible = false
+    m.pageBar.visible = false
 
     if m.allMovies.count() = 0
         m.movieCounterLabel.text = "Cargando catálogo..."
@@ -231,8 +256,6 @@ sub showSearch()
     m.searchKeyboard.findNode("keyGrid").setFocus(true)
 end sub
 
-' Descarga todo el catálogo página por página (una sola vez, se cachea en
-' m.allMovies) para poder filtrar instantáneamente mientras se escribe.
 sub fetchCatalogPage(page as Integer)
     m.catalogTask = CreateObject("roSGNode", "ApiTask")
     m.catalogTask.requestUrl = "https://raw.githubusercontent.com/r1gox/PlayZone-Api/main/movies/page-" + page.toStr() + ".json"
@@ -262,8 +285,6 @@ sub onCatalogPageRetrieved()
     end if
 end sub
 
-' Se dispara solo cuando cambia el texto del CustomKeyboard (su propio
-' teclado sigue funcionando exactamente igual que antes).
 sub onSearchTextChanged()
     filterSearchResults()
 end sub
@@ -294,9 +315,6 @@ sub filterSearchResults()
     end if
 end sub
 
-' Selecciona un resultado de búsqueda usando los datos completos que ya se
-' descargaron de GitHub para armar el catálogo del buscador (sin pedir
-' nada más a ningún servidor).
 sub onSearchItemSelected()
     idx = m.searchResultsGrid.itemSelected
     if m.searchResultsRawData <> invalid and idx < m.searchResultsRawData.count()
@@ -304,9 +322,6 @@ sub onSearchItemSelected()
     end if
 end sub
 
-' Arma la pantalla de detalle de una película a partir de los datos que ya
-' vinieron completos en el JSON de GitHub (título, imagen, sinopsis, rating,
-' géneros y los links de video). No hace ninguna llamada adicional.
 sub showMovieDetails(data as object)
     if data = invalid then return
 
@@ -342,7 +357,6 @@ sub showInstructions()
     m.top.findNode("closeInstructionsBtn").setFocus(true)
 end sub
 
-' --- NAVEGACIÓN ---
 sub onMenuItemSelected()
     idx = m.menuList.itemSelected
     if idx = 0
@@ -382,6 +396,10 @@ sub onCountrySelected()
     m.viewMode = "channels"
     m.countryGroup.visible = false
     m.movieGrid.visible = true
+
+    m.titleLabel.text = "CANALES TV CABLE"
+    setChannelsUI()
+
     m.m3uTask = CreateObject("roSGNode", "M3uTask")
     m.m3uTask.url = selected.description
     m.m3uTask.observeField("content", "onChannelsRetrieved")
@@ -395,9 +413,6 @@ sub onPlayPressed()
     end if
 end sub
 
-' Intenta reproducir el servidor actual (m.currentStreamIndex). Si ese
-' servidor está caído, onVideoStateChange() avanza automáticamente al
-' siguiente, hasta encontrar uno que funcione o agotar la lista.
 sub tryPlayCurrentStream()
     if m.currentStreams = invalid or m.currentStreamIndex >= m.currentStreams.count()
         m.videoStatusLabel.text = "No se pudo reproducir con ningún servidor disponible."
@@ -419,17 +434,9 @@ sub tryPlayCurrentStream()
     playVideo(stream.url, stream.format)
 end sub
 
-' Si el servidor actual falla, decide cómo seguir según el TIPO de error:
-' - Si el error sugiere que el contenido está mal etiquetado (formato/
-'   contenedor incorrecto), reintenta la MISMA url con el otro formato
-'   común antes de rendirse con ese servidor.
-' - Si es un error de red/HTTP real, pasa directo al siguiente servidor
-'   (reintentar con otro formato no va a arreglar un servidor caído).
 sub onVideoStateChange()
     state = m.videoPlayer.state
     if state = "error"
-        ' Log de diagnóstico: conectate por telnet al puerto 8085 de tu
-        ' Roku para ver esto en vivo la próxima vez que un servidor falle.
         print "=== ERROR DE REPRODUCCION ==="
         print "Servidor intentado: "; m.currentStreamIndex + 1; " de "; m.currentStreams.count()
         print "URL: "; m.videoPlayer.content.url
@@ -462,8 +469,6 @@ sub onVideoStateChange()
     end if
 end sub
 
-' "format" es opcional: los canales de TV/países (listas M3U) siempre son
-' HLS y no lo mandan, así que si no se especifica se usa "hls" por defecto.
 sub playVideo(url as String, format = "hls" as String)
     videoContent = CreateObject("roSGNode", "ContentNode")
     videoContent.url = url
@@ -537,9 +542,6 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
     return false
 end function
 
-' Algunas APIs no siempre usan el mismo nombre de campo para la imagen
-' (por ejemplo "image" en el listado y "poster" en el detalle). Esta función
-' prueba los nombres más comunes hasta encontrar uno con datos.
 function getPosterUrl(data as object) as string
     posibles = ["image", "poster", "img", "thumbnail", "cover", "poster_url", "imageUrl", "thumb"]
     for each campo in posibles
