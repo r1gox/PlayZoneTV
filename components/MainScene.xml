@@ -29,22 +29,23 @@
 
     <!-- 2. CONTENIDO PRINCIPAL -->
     <Group id="mainContent" visible="false">
-      <!-- Icono claqueta púrpura (alineado con el título) -->
+      <!-- Fila superior: icono + categoría | contador | hint (misma altura) -->
+      <!-- Icono de sección (cambia según películas/canales/países/buscar) -->
       <Poster
           id="headerIcon"
           uri="pkg:/images/icons/film.png"
-          width="36"
-          height="36"
-          translation="[42, 22]"
+          width="30"
+          height="30"
+          translation="[50, 26]"
           loadDisplayMode="scaleToFit"
           visible="true" />
-      <Label id="titleLabel" translation="[88, 24]" size="32" color="0xFFFFFFFF" bold="true" />
-      <Label id="movieCounterLabel" translation="[0, 30]" size="20" color="0xAAAAAAFF" horizAlign="center" width="1280" />
-      <Label id="navHintLabel" text="Usa el menú (Izquierda) para navegar" translation="[790, 30]" size="20" color="0x7F5AF0FF" bold="true" />
+      <Label id="titleLabel" translation="[90, 28]" size="26" color="0xFFFFFFFF" bold="true" vertAlign="center" height="30" />
+      <Label id="movieCounterLabel" translation="[400, 30]" width="400" size="20" color="0xAAAAAAFF" horizAlign="center" height="26" vertAlign="center" />
+      <Label id="navHintLabel" text="Usa el menú (Izquierda) para navegar" translation="[820, 30]" width="420" size="18" color="0x7F5AF0FF" bold="true" height="26" vertAlign="center" />
 
       <MarkupGrid
           id="movieGrid"
-          translation="[80, 80]"
+          translation="[80, 85]"
           itemComponentName="MovieItem"
           itemSize="[185, 300]"
           itemSpacing="[28, 28]"

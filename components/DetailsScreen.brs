@@ -10,8 +10,18 @@ sub init()
     m.languagesLabel = m.top.findNode("languagesLabel")
     m.descriptionLabel = m.top.findNode("descriptionLabel")
     m.playButton = m.top.findNode("playButton")
+    m.playBg = m.top.findNode("playBg")
+    m.playLabel = m.top.findNode("playLabel")
 
-    m.playButton.observeField("buttonSelected", "onPlaySelected")
+    m.playButton.observeField("focusedChild", "onPlayFocus")
+end sub
+
+sub onPlayFocus()
+    if m.playButton.isInFocusChain()
+        m.playBg.color = "0x9B7AFFFF"   ' más claro al enfocar
+    else
+        m.playBg.color = "0x7F5AF0FF"
+    end if
 end sub
 
 sub onContentChange()
@@ -19,13 +29,17 @@ sub onContentChange()
     if content <> invalid
         m.poster.uri = content.hdPosterUrl
         m.titleLabel.text = content.title
-        m.descriptionLabel.text = content.description
 
-        ' Cada badge se oculta si esa película no trae el dato (en vez de
-        ' quedar mostrando una caja de color vacía, o el texto de la
-        ' película anterior).
+        if content.description <> invalid and content.description <> ""
+            m.descriptionLabel.text = "Sinopsis: " + content.description
+        else
+            m.descriptionLabel.text = "Sinopsis: No disponible"
+        end if
+
         if content.rating <> invalid and content.rating <> ""
-            m.ratingLabel.text = "Rating: " + content.rating
+            r = content.rating
+            if type(r) = "Integer" or type(r) = "Float" or type(r) = "Double" then r = r.ToStr()
+            m.ratingLabel.text = "★ " + r
             m.ratingBox.visible = true
         else
             m.ratingBox.visible = false
@@ -45,13 +59,12 @@ sub onContentChange()
             m.qualityBox.visible = false
         end if
 
-        ' Géneros de la película (comedia, romance, etc.)
         if content.categories <> invalid and content.categories.count() > 0
             gen = ""
             for each g in content.categories
                 gen += g + "  "
             end for
-            m.languagesLabel.text = "Géneros: " + gen
+            m.languagesLabel.text = "Géneros: " + gen.Trim()
         else
             m.languagesLabel.text = ""
         end if
@@ -60,6 +73,13 @@ sub onContentChange()
     end if
 end sub
 
-sub onPlaySelected()
-    m.top.playPressed = true
-end sub
+function onKeyEvent(key as String, press as Boolean) as Boolean
+    if not press then return false
+    if key = "OK" or key = "play"
+        if m.playButton.isInFocusChain()
+            m.top.playPressed = true
+            return true
+        end if
+    end if
+    return false
+end function

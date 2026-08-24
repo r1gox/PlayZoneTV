@@ -11,6 +11,7 @@ sub init()
     m.menuList = m.top.findNode("menuList")
     m.menuOverlay = m.top.findNode("menuOverlay")
     m.titleLabel = m.top.findNode("titleLabel")
+    m.headerIcon = m.top.findNode("headerIcon")
     m.movieCounterLabel = m.top.findNode("movieCounterLabel")
     m.navHintLabel = m.top.findNode("navHintLabel")
     m.pageBar = m.top.findNode("pageBar")
@@ -65,6 +66,7 @@ sub init()
     ]
 
     m.viewMode = "portal"
+    m.lastMovieCounterText = ""
     m.currentPage = 1
     m.portalGrid.setFocus(true)
 
@@ -141,6 +143,15 @@ sub showPortal()
 end sub
 
 ' --- SECCIONES ---
+
+sub setSectionHeader(title as String, iconName as String)
+    if m.titleLabel <> invalid then m.titleLabel.text = title
+    if m.headerIcon <> invalid
+        m.headerIcon.uri = "pkg:/images/icons/" + iconName + ".png"
+        m.headerIcon.visible = true
+    end if
+end sub
+
 sub loadMovies(page as Integer)
     m.viewMode = "movies"
     m.currentPage = page
@@ -149,7 +160,7 @@ sub loadMovies(page as Integer)
     m.movieGrid.visible = true
     m.countryGroup.visible = false
     m.searchGroup.visible = false
-    m.titleLabel.text = "PlayZone - Películas"
+    setSectionHeader("PELÍCULAS", "film")
     if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = true
     if m.navHintLabel <> invalid then m.navHintLabel.visible = true
     if m.pageBar <> invalid then m.pageBar.visible = true
@@ -176,7 +187,8 @@ sub onMoviesRetrieved()
         m.moviesRawData = list
         m.movieGrid.content = content
         m.movieGrid.setFocus(true)
-        m.movieCounterLabel.text = "(" + content.getChildCount().toStr() + " películas)"
+        m.lastMovieCounterText = "(" + content.getChildCount().toStr() + " películas)"
+        m.movieCounterLabel.text = m.lastMovieCounterText
         m.pageIndicator.text = "Página " + m.currentPage.toStr() + " de " + m.totalMoviePages.toStr()
     end if
 end sub
@@ -188,7 +200,7 @@ sub loadCable()
     m.movieGrid.visible = true
     m.countryGroup.visible = false
     m.searchGroup.visible = false
-    m.titleLabel.text = "CANALES TV CABLE"
+    setSectionHeader("CANALES TV CABLE", "tv")
     if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = false
     if m.navHintLabel <> invalid then m.navHintLabel.visible = false
     if m.pageBar <> invalid then m.pageBar.visible = false
@@ -205,7 +217,7 @@ sub showCountryList()
     m.movieGrid.visible = false
     m.countryGroup.visible = true
     m.searchGroup.visible = false
-    m.titleLabel.text = "IPTV POR PAÍSES"
+    setSectionHeader("TV POR PAÍSES", "globe")
     if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = false
     if m.navHintLabel <> invalid then m.navHintLabel.visible = false
     if m.pageBar <> invalid then m.pageBar.visible = false
@@ -231,7 +243,7 @@ sub showSearch()
     m.movieGrid.visible = false
     m.countryGroup.visible = false
     m.searchGroup.visible = true
-    m.titleLabel.text = "Buscar Películas"
+    setSectionHeader("BUSCAR", "search")
 
     if m.allMovies.count() = 0
         m.movieCounterLabel.text = "Cargando catálogo..."
@@ -332,7 +344,7 @@ sub showMovieDetails(data as object)
         m.extractTask.requestUrl = data.extractUrl
         m.extractTask.observeField("response", "onExtractRetrieved")
         m.extractTask.control = "RUN"
-        m.movieCounterLabel.text = "Cargando detalles..."
+        if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando detalles..."
         return
     end if
 
@@ -507,52 +519,23 @@ end sub
 sub onVideoStateChange()
     state = m.videoPlayer.state
     if state = "error"
-        ' Log de diagnóstico: conectate por telnet al puerto 8085 de tu
-        ' Roku para ver esto en vivo la próxima vez que un servidor falle.
         print "=== ERROR DE REPRODUCCION ==="
-        if m.currentStreams <> invalid and m.currentStreamIndex <> invalid
-            print "Servidor intentado: "; m.currentStreamIndex + 1; " de "; m.currentStreams.count()
-        end if
         if m.videoPlayer.content <> invalid
             print "URL: "; m.videoPlayer.content.url
-            print "Formato declarado: "; m.videoPlayer.content.streamFormat
         end if
         print "errorCode: "; m.videoPlayer.errorCode
         print "errorMsg: "; m.videoPlayer.errorMsg
         print "=============================="
-
-        if m.currentStreams = invalid or m.currentStreamIndex = invalid
-            m.videoStatusLabel.text = "No se pudo reproducir esta película." + chr(10) + "Prueba otra o pulsa ATRÁS para volver."
-            m.videoStatusBox.visible = true
-            return
-        end if
-
-        msg = LCase(m.videoPlayer.errorMsg)
-        esProblemaDeFormato = (instr(1, msg, "malformed") > 0) or (instr(1, msg, "codec") > 0) or (instr(1, msg, "container") > 0)
-
-        if esProblemaDeFormato and not m.formatRetryDone
-            m.formatRetryDone = true
-            actual = m.currentStreams[m.currentStreamIndex]
-            if actual.format = "hls" then
-                otroFormato = "mp4"
-            else
-                otroFormato = "hls"
-            end if
-            print "Reintentando mismo link con formato alternativo: "; otroFormato
-            m.videoStatusLabel.text = "Probando otro formato para este servidor..."
-            m.videoStatusBox.visible = true
-            playVideo(actual.url, otroFormato)
-        else
-            m.currentStreamIndex++
-            tryPlayCurrentStream()
-        end if
+        m.videoPlayer.control = "stop"
+        m.videoPlayer.visible = false
+        m.videoStatusLabel.text = "Este video no es compatible con Roku." + chr(10) + "Pulsa ATRÁS para volver."
+        m.videoStatusBox.visible = true
+        if m.detailsScreen.visible then m.detailsScreen.setFocus(true)
     else if state = "playing" or state = "buffering"
         m.videoStatusBox.visible = false
     end if
 end sub
 
-' "format" es opcional: los canales de TV/países (listas M3U) siempre son
-' HLS y no lo mandan, así que si no se especifica se usa "hls" por defecto.
 sub playVideo(url as String, format = "hls" as String)
     videoContent = CreateObject("roSGNode", "ContentNode")
     videoContent.url = url
@@ -598,6 +581,13 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         if m.detailsScreen.visible
             m.detailsScreen.visible = false
             m.videoStatusBox.visible = false
+            ' Restaurar contador de películas (evita que se quede en "Cargando detalles...")
+            if m.viewMode = "movies" and m.lastMovieCounterText <> invalid
+                m.movieCounterLabel.text = m.lastMovieCounterText
+                m.movieCounterLabel.visible = true
+            else if m.viewMode = "search" and m.allMovies <> invalid
+                m.movieCounterLabel.text = "Escribe para buscar (" + m.allMovies.count().toStr() + " títulos)"
+            end if
             if m.viewMode = "search" then m.searchResultsGrid.setFocus(true) else m.movieGrid.setFocus(true)
             return true
         end if
