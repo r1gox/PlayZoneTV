@@ -85,7 +85,11 @@ sub init()
     m.currentSeasons = []
     m.currentEpisodes = []
     m.pendingSeriesData = invalid
+    m.pendingSeriesFullData = invalid
     m.pendingEpisodeData = invalid
+    m.seriesDetailsActive = false
+    m.seriesDetailsReturnMode = "series"
+    m.seriesEnteredFromSearch = false
     m.allSeries = []
     m.searchMode = "movies"
     m.searchSeriesCatalogPage = 0
@@ -296,15 +300,20 @@ end sub
 
 sub showSeriesDetails(data as object, isNewSelection = true as Boolean)
     if data = invalid then return
-    extractUrl = FixZonaApiUrl(data.extractUrl)
+
+    extractUrl = ""
+    if data.extractUrl <> invalid then extractUrl = FixZonaApiUrl(data.extractUrl)
     if extractUrl = "" then return
 
-    ' Solo actualizamos "vine del buscador" cuando es una selección nueva
-    ' de verdad (tocaste una serie). Cuando esta función se reutiliza para
-    ' volver de episodios a temporadas, NO la tocamos, para no perder el
-    ' rastro de por dónde entraste originalmente.
+    ' Guardamos por dónde entró el usuario.
+    ' Esto permite conservar el comportamiento actual de búsqueda y navegación.
     if isNewSelection
         m.seriesEnteredFromSearch = (m.viewMode = "search")
+        m.seriesDetailsReturnMode = "series"
+    else
+        ' Cuando volvemos desde un episodio, conservamos el flujo anterior:
+        ' episodio -> ficha de serie -> atrás -> episodios.
+        m.seriesDetailsReturnMode = "episodes"
     end if
 
     m.pendingSeriesData = data
@@ -312,9 +321,9 @@ sub showSeriesDetails(data as object, isNewSelection = true as Boolean)
     m.extractTask.requestUrl = extractUrl
     m.extractTask.observeField("response", "onSeriesExtractRetrieved")
     m.extractTask.control = "RUN"
-    if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando temporadas..."
-end sub
 
+    if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando detalles..."
+end sub
 
 
 sub onSeriesExtractRetrieved()
@@ -322,41 +331,92 @@ sub onSeriesExtractRetrieved()
     if res = invalid or res.status <> "success" then return
     if res.seasons = invalid then return
 
+    ' Mantener exactamente los datos usados por temporadas/episodios.
     m.currentSeasons = res.seasons
-    m.viewMode = "seasons"
+    m.pendingSeriesFullData = res
 
-    ' Esto es lo que faltaba: si se llegó acá desde el buscador (o desde
-    ' cualquier otra pantalla), hay que volver a mostrar la grilla y
-    ' esconder el buscador/portal — si no, la lista de temporadas se carga
-    ' "detrás" de la pantalla que estaba abierta y parece que se congeló.
+    data = m.pendingSeriesData
+    if data = invalid then data = {}
+
+    ' ============================================================
+    ' DATOS DE LA FICHA DE SERIE
+    ' Se preparan con los mismos campos que usa DetailsScreen
+    ' para las películas.
+    ' ============================================================
+
+    if res.title <> invalid and res.title <> ""
+        data.title = res.title
+    end if
+
+    if data.title = invalid or data.title = ""
+        if res.name <> invalid and res.name <> "" then data.title = res.name
+    end if
+
+    if res.description <> invalid and res.description <> ""
+        data.description = res.description
+    else if res.synopsis <> invalid and res.synopsis <> ""
+        data.description = res.synopsis
+    else if res.summary <> invalid and res.summary <> ""
+        data.description = res.summary
+    end if
+
+    if res.rating <> invalid and res.rating <> ""
+        data.rating = res.rating
+    else if res.imdbRating <> invalid and res.imdbRating <> ""
+        data.rating = res.imdbRating
+    end if
+
+    if res.year <> invalid and res.year <> ""
+        data.year = res.year
+    else if res.releaseDate <> invalid and res.releaseDate <> ""
+        data.year = res.releaseDate
+    else if res.seasons.count() > 0
+        if res.seasons[0].releaseDate <> invalid and res.seasons[0].releaseDate <> ""
+            data.year = res.seasons[0].releaseDate
+        end if
+    end if
+
+    if res.genres <> invalid
+        data.genres = res.genres
+    else if res.categories <> invalid
+        data.genres = res.categories
+    end if
+
+    if res.poster <> invalid and res.poster <> ""
+        data.image = res.poster
+    else if res.image <> invalid and res.image <> ""
+        data.image = res.image
+    end if
+
+    ' La ficha de serie no necesita streams.
+    ' Al pulsar el botón de la ficha, onPlayPressed() llevará al usuario
+    ' a las temporadas, manteniendo el flujo original.
+    data.sources = []
+
+    m.pendingSeriesData = data
+    m.seriesDetailsActive = true
+
+    ' Ocultar el catálogo detrás de la ficha.
     m.portalGroup.visible = false
     m.mainContent.visible = true
-    m.movieGrid.visible = true
+    m.movieGrid.visible = false
     m.countryGroup.visible = false
     m.searchGroup.visible = false
+    if m.pageBar <> invalid then m.pageBar.visible = false
+    if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = false
+    if m.navHintLabel <> invalid then m.navHintLabel.visible = false
 
-    setSectionHeader(res.title, "film")
-
-    content = CreateObject("roSGNode", "ContentNode")
-    for each season in res.seasons
-        item = content.CreateChild("ContentNode")
-        item.title = season.title
-        if season.releaseDate <> invalid and season.releaseDate <> ""
-            item.title = season.title + "  (" + season.releaseDate + ")"
-        end if
-        item.hdPosterUrl = getPosterUrl(res)
-    end for
-
-    m.movieGrid.content = content
-    m.movieGrid.setFocus(true)
-    if res.totalSeasons <> invalid and res.totalEpisodes <> invalid
-        m.movieCounterLabel.text = res.totalSeasons.toStr() + " temporadas · " + res.totalEpisodes.toStr() + " episodios"
-    end if
+    ' ============================================================
+    ' USAR EL MISMO DetailsScreen DE LAS PELÍCULAS
+    ' ============================================================
+    openDetailsWithData(data)
 end sub
+
 
 sub showSeasonEpisodes(seasonIdx as Integer)
     if m.currentSeasons = invalid or seasonIdx >= m.currentSeasons.count() then return
     season = m.currentSeasons[seasonIdx]
+    m.currentSeasonIndex = seasonIdx
     m.currentEpisodes = season.episodes
     m.viewMode = "episodes"
     setSectionHeader(season.title, "film")
@@ -765,6 +825,8 @@ sub onExtractRetrieved()
         if res.description <> invalid then data.description = res.description
         if res.rating <> invalid then data.rating = res.rating
         if res.genres <> invalid then data.genres = res.genres
+        if res.year <> invalid then data.year = res.year
+        if res.quality <> invalid then data.quality = res.quality
         if res.poster <> invalid then data.image = res.poster
 
         data.sources = []
@@ -806,32 +868,137 @@ end sub
 
 sub openDetailsWithData(data as object)
     if data = invalid then return
+
     detailsContent = CreateObject("roSGNode", "ContentNode")
-    detailsContent.title = data.title
+
+    ' TITULO
+    if data.title <> invalid and data.title <> ""
+        detailsContent.title = data.title
+    else
+        detailsContent.title = "Sin título"
+    end if
+
+    ' POSTER
     detailsContent.hdPosterUrl = getPosterUrl(data)
-    if data.description <> invalid then detailsContent.description = data.description else detailsContent.description = ""
-    if data.rating <> invalid then detailsContent.rating = data.rating
-    if data.year <> invalid then detailsContent.releaseDate = data.year
+
+
+    ' SINOPSIS
+    if data.description <> invalid and data.description <> ""
+        detailsContent.description = data.description
+    else
+        detailsContent.description = "No disponible"
+    end if
+
+
+    ' RATING
+    if data.rating <> invalid and data.rating <> ""
+        detailsContent.rating = data.rating
+    else
+        detailsContent.rating = "Null"
+    end if
+
+
+    ' AÑO
+    if data.year <> invalid and data.year <> ""
+        detailsContent.releaseDate = data.year
+    else
+        detailsContent.releaseDate = "Null"
+    end if
+
+
+    ' CALIDAD
+    ' Ejemplo: 720 HD / 1080p HD
     if data.quality <> invalid and data.quality <> ""
-        if detailsContent.description <> "" then
-            detailsContent.description = detailsContent.description + " | " + data.quality
+
+        qualityText = data.quality.ToStr().Trim()
+
+        if qualityText <> ""
+            detailsContent.quality = qualityText
+
+            ' La calidad también aparece al final de la sinopsis
+            if detailsContent.description <> ""
+                detailsContent.description = detailsContent.description + " | " + qualityText
+            else
+                detailsContent.description = qualityText
+            end if
+
         else
-            detailsContent.description = data.quality
+            detailsContent.quality = "Null"
         end if
+
+    else
+
+        detailsContent.quality = "Null"
+
+        ' Si no hay calidad, mostrar Null al final de la sinopsis
+        if detailsContent.description <> ""
+            detailsContent.description = detailsContent.description + " | Null"
+        end if
+
     end if
-    if data.genres <> invalid then detailsContent.categories = data.genres
+
+
+    ' GENEROS
+    if data.genres <> invalid and data.genres.count() > 0
+
+        detailsContent.categories = data.genres
+
+    else
+
+        emptyGenres = CreateObject("roArray", 0, true)
+        emptyGenres.Push("No disponible")
+        detailsContent.categories = emptyGenres
+
+    end if
+
+
+    ' STREAMS
     m.currentStreams = []
+
     if data.sources <> invalid
+
         for each src in data.sources
+
             streamItem = {}
+
             streamItem.url = src.url
-            if src.type <> invalid then streamItem.format = src.type else streamItem.format = "hls"
+
+            if src.type <> invalid
+                streamItem.format = src.type
+            else
+                streamItem.format = "hls"
+            end if
+
             m.currentStreams.Push(streamItem)
+
         end for
+
     end if
+
+
+    ' CARGAR DETALLES
     m.detailsScreen.content = detailsContent
+
+
+    ' Cambiar el texto del mismo botón según el tipo de contenido.
+    ' Películas: REPRODUCIR
+    ' Series: TEMPORADAS
+    playLabel = m.detailsScreen.findNode("playLabel")
+
+    if playLabel <> invalid
+
+        if m.seriesDetailsActive = true
+            playLabel.text = "TEMPORADAS"
+        else
+            playLabel.text = "REPRODUCIR"
+        end if
+
+    end if
+
+
     m.detailsScreen.visible = true
     m.detailsScreen.setFocus(true)
+
 end sub
 
 sub showInstructions()
@@ -911,7 +1078,111 @@ sub onCountrySelected()
     m.m3uTask.control = "RUN"
 end sub
 
+sub showSeriesSeasons()
+    if m.currentSeasons = invalid or m.currentSeasons.count() = 0 then return
+
+    m.seriesDetailsActive = false
+    m.detailsScreen.visible = false
+    m.videoStatusBox.visible = false
+    m.viewMode = "seasons"
+
+    m.movieGrid.visible = true
+    if m.pageBar <> invalid then m.pageBar.visible = true
+    if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = true
+    if m.navHintLabel <> invalid then m.navHintLabel.visible = true
+
+    seriesTitle = ""
+    if m.pendingSeriesData <> invalid and m.pendingSeriesData.title <> invalid
+        seriesTitle = m.pendingSeriesData.title
+    end if
+
+    if seriesTitle <> ""
+        setSectionHeader(seriesTitle, "film")
+    else
+        setSectionHeader("TEMPORADAS", "film")
+    end if
+
+    content = CreateObject("roSGNode", "ContentNode")
+
+    for each season in m.currentSeasons
+        item = content.CreateChild("ContentNode")
+
+        if season.title <> invalid and season.title <> ""
+            item.title = season.title
+        else
+            item.title = "Temporada"
+        end if
+
+        if season.releaseDate <> invalid and season.releaseDate <> ""
+            item.title = item.title + "  (" + season.releaseDate + ")"
+        end if
+
+        if m.pendingSeriesData <> invalid
+            item.hdPosterUrl = getPosterUrl(m.pendingSeriesData)
+        end if
+    end for
+
+    m.movieGrid.content = content
+    m.movieGrid.setFocus(true)
+
+    totalEpisodes = 0
+    for each season in m.currentSeasons
+        if season.episodesCount <> invalid
+            totalEpisodes = totalEpisodes + season.episodesCount
+        else if season.episodes <> invalid
+            totalEpisodes = totalEpisodes + season.episodes.count()
+        end if
+    end for
+
+    if m.movieCounterLabel <> invalid
+        if totalEpisodes > 0
+            m.movieCounterLabel.text = m.currentSeasons.count().toStr() + " temporadas · " + totalEpisodes.toStr() + " episodios"
+        else
+            m.movieCounterLabel.text = m.currentSeasons.count().toStr() + " temporadas"
+        end if
+    end if
+end sub
+
+sub showSeriesDescription()
+    if m.pendingSeriesData = invalid then return
+
+    m.seriesDetailsActive = true
+    m.seriesDetailsReturnMode = "series"
+
+    m.portalGroup.visible = false
+    m.mainContent.visible = true
+    m.movieGrid.visible = false
+    m.countryGroup.visible = false
+    m.searchGroup.visible = false
+    if m.pageBar <> invalid then m.pageBar.visible = false
+    if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = false
+    if m.navHintLabel <> invalid then m.navHintLabel.visible = false
+    m.videoStatusBox.visible = false
+
+    openDetailsWithData(m.pendingSeriesData)
+end sub
+
 sub onPlayPressed()
+
+    ' ============================================================
+    ' SERIE
+    ' El botón de la ficha lleva a temporadas.
+    ' ============================================================
+    if m.seriesDetailsActive = true
+        if m.currentSeasons = invalid or m.currentSeasons.count() = 0
+            m.videoStatusLabel.text = "Esta serie no tiene temporadas disponibles."
+            m.videoStatusBox.visible = true
+            return
+        end if
+
+        showSeriesSeasons()
+        return
+    end if
+
+    ' ============================================================
+    ' PELÍCULA
+    ' Flujo original sin cambios.
+    ' ============================================================
     if m.currentStreams <> invalid and m.currentStreams.count() > 0
         m.currentStreamIndex = 0
         tryPlayCurrentStream()
@@ -1027,6 +1298,53 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             return true
         end if
         if m.detailsScreen.visible
+
+            ' ====================================================
+            ' FICHA DE SERIE
+            ' Volver desde la ficha NO altera el flujo actual.
+            ' ====================================================
+            if m.seriesDetailsActive = true
+                m.seriesDetailsActive = false
+                m.detailsScreen.visible = false
+                m.videoStatusBox.visible = false
+
+                ' Ficha abierta desde una serie del catálogo.
+                if m.seriesEnteredFromSearch = true
+                    m.viewMode = "search"
+                    if m.movieCounterLabel <> invalid and m.allSeries <> invalid
+                        m.movieCounterLabel.text = "Escribe para buscar (" + m.allSeries.count().toStr() + " series)"
+                        m.movieCounterLabel.visible = true
+                    end if
+                    m.searchResultsGrid.setFocus(true)
+                else
+                   ' ====================================================
+                   ' FICHA DE SERIE -> CATÁLOGO DE SERIES
+                   ' ====================================================
+                   m.viewMode = "series"
+                   m.seriesDetailsActive = false
+
+                   m.detailsScreen.visible = false
+                   m.movieGrid.visible = true
+                   m.countryGroup.visible = false
+                   m.searchGroup.visible = false
+
+                   if m.pageBar <> invalid then m.pageBar.visible = true
+                   if m.navHintLabel <> invalid then m.navHintLabel.visible = true
+                   if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = true
+ 
+                   ' IMPORTANTE:
+                   ' Recargar el catálogo de series para que movieGrid
+                   ' deje de contener las temporadas anteriores.
+                   loadSeries(m.currentPage)
+
+                   return true
+               end if
+            end if
+
+            ' ====================================================
+            ' FICHA DE PELÍCULA
+            ' Código original.
+            ' ====================================================
             m.detailsScreen.visible = false
             m.videoStatusBox.visible = false
             if m.viewMode = "movies" and m.lastMovieCounterText <> invalid
@@ -1043,20 +1361,13 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             return true
         end if
         if m.viewMode = "episodes"
-            if m.pendingSeriesData <> invalid
-                showSeriesDetails(m.pendingSeriesData, false)
-            else
-                loadSeries(m.currentPage)
-            end if
+            ' Episodios -> Temporadas
+            showSeriesSeasons()
             return true
         end if
         if m.viewMode = "seasons"
-            if m.seriesEnteredFromSearch = true
-                m.seriesEnteredFromSearch = false
-                showSearch("series")
-            else
-                loadSeries(m.currentPage)
-            end if
+            ' Temporadas -> Ficha de la serie
+            showSeriesDescription()
             return true
         end if
         if m.viewMode = "search"
