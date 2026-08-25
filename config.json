@@ -1,6 +1,6 @@
 {
-  "moviesListUrl": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page={page}",
-  "seriesListUrl": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page={page}",
+  "moviesApiBase": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page={page}",
+  "seriesApiBase": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page={page}",
   
   "imageProxyBase": "https://apiprorescue.testaacc.workers.dev",
 
