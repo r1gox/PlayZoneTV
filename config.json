@@ -1,8 +1,8 @@
 {
-  "moviesApiUrl": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page=",
+  "moviesApiUrl": "https://apiprorescue.tvymas.workers.dev/list?type=movies&page=1",
   "seriesApiUrl": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page=",
   
-  "imageProxyBase": "https://apiprorescue.testaacc.workers.dev",
+  "imageProxyBase": "https://apiprorescue.tvymas.workers.dev",
 
   "cableM3u": "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u",
   "countriesIptvBase": "https://iptv-org.github.io/iptv/countries/",
