@@ -1,5 +1,5 @@
 {
-  "moviesListUrl": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page=",
+  "moviesListUrl": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page={page}",
   "seriesListUrl": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page={page}",
   
   "imageProxyBase": "https://apiprorescue.testaacc.workers.dev",
