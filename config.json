@@ -1,7 +1,7 @@
 {
-  "moviesApiBase": "https://apiprorescue.testaacc.workers.dev",
+  "moviesApiBase": "https://zonaapp.ikkihkurogane.workers.dev",
   "seriesApiBase": "https://apiprorescue.testaacc.workers.dev",
-  "imageProxyBase": "https://apiprorescue.testaacc.workers.dev",
+  "imageProxyBase": "https://zonaapp.ikkihkurogane.workers.dev",
 
   "cableM3u": "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u",
   "countriesIptvBase": "https://iptv-org.github.io/iptv/countries/",
