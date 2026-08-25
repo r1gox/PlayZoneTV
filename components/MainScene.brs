@@ -107,6 +107,17 @@ sub init()
     m.searchTimer.observeField("fire", "onSearchTimerFire")
     m.searchFilterBusy = false
 
+    ' --- CONFIG REMOTO (URLs) ---
+    m.config = {
+        moviesApiBase: "https://zonaapp.ikkihkurogane.workers.dev",
+        seriesApiBase: "https://apiprorescue.testaacc.workers.dev",
+        imageProxyBase: "https://zonaapp.ikkihkurogane.workers.dev",
+        cableM3u: "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u",
+        countriesIptvBase: "https://iptv-org.github.io/iptv/countries/"
+    }
+    m.configLoaded = false
+    loadRemoteConfig()
+
     checkForUpdates()
 end sub
 
@@ -129,6 +140,27 @@ sub onUpdateCheckRetrieved()
         m.updateBannerLabel.text = msg
         m.updateBanner.visible = true
     end if
+end sub
+
+' --- CONFIG REMOTO ---
+sub loadRemoteConfig()
+    m.configTask = CreateObject("roSGNode", "ApiTask")
+    m.configTask.requestUrl = "https://raw.githubusercontent.com/r1gox/PlayZoneTV/main/config.json"
+    m.configTask.observeField("response", "onConfigRetrieved")
+    m.configTask.control = "RUN"
+end sub
+
+sub onConfigRetrieved()
+    res = m.configTask.response
+    if res = invalid then return
+
+    if res.moviesApiBase <> invalid and res.moviesApiBase <> "" then m.config.moviesApiBase = res.moviesApiBase
+    if res.seriesApiBase <> invalid and res.seriesApiBase <> "" then m.config.seriesApiBase = res.seriesApiBase
+    if res.imageProxyBase <> invalid and res.imageProxyBase <> "" then m.config.imageProxyBase = res.imageProxyBase
+    if res.cableM3u <> invalid and res.cableM3u <> "" then m.config.cableM3u = res.cableM3u
+    if res.countriesIptvBase <> invalid and res.countriesIptvBase <> "" then m.config.countriesIptvBase = res.countriesIptvBase
+
+    m.configLoaded = true
 end sub
 
 sub addItem(parent, title)
@@ -178,7 +210,7 @@ sub loadMovies(page as Integer)
     if m.navHintLabel <> invalid then m.navHintLabel.visible = true
     if m.pageBar <> invalid then m.pageBar.visible = true
     m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.requestUrl = "https://zonaapp.ikkihkurogane.workers.dev/list?page=" + page.toStr()
+    m.apiTask.requestUrl = m.config.moviesApiBase + "/list?page=" + page.toStr()
     m.apiTask.observeField("response", "onMoviesRetrieved")
     m.apiTask.control = "RUN"
 end sub
@@ -217,7 +249,7 @@ sub loadSeries(page as Integer)
     if m.navHintLabel <> invalid then m.navHintLabel.visible = true
     if m.pageBar <> invalid then m.pageBar.visible = true
     m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.requestUrl = "https://zonaapis.arcando.cloud/list?type=tvshows&page=" + page.toStr()
+    m.apiTask.requestUrl = m.config.seriesApiBase + "/list?type=tvshows&page=" + page.toStr()
     m.apiTask.observeField("response", "onSeriesRetrieved")
     m.apiTask.control = "RUN"
 end sub
@@ -262,10 +294,19 @@ sub onSeriesRetrieved()
     m.pageIndicator.text = "Página " + m.currentPage.toStr() + " de " + m.totalSeriesPages.toStr()
 end sub
 
-sub showSeriesDetails(data as object)
+sub showSeriesDetails(data as object, isNewSelection = true as Boolean)
     if data = invalid then return
     extractUrl = FixZonaApiUrl(data.extractUrl)
     if extractUrl = "" then return
+
+    ' Solo actualizamos "vine del buscador" cuando es una selección nueva
+    ' de verdad (tocaste una serie). Cuando esta función se reutiliza para
+    ' volver de episodios a temporadas, NO la tocamos, para no perder el
+    ' rastro de por dónde entraste originalmente.
+    if isNewSelection
+        m.seriesEnteredFromSearch = (m.viewMode = "search")
+    end if
+
     m.pendingSeriesData = data
     m.extractTask = CreateObject("roSGNode", "ApiTask")
     m.extractTask.requestUrl = extractUrl
@@ -274,6 +315,8 @@ sub showSeriesDetails(data as object)
     if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando temporadas..."
 end sub
 
+
+
 sub onSeriesExtractRetrieved()
     res = m.extractTask.response
     if res = invalid or res.status <> "success" then return
@@ -281,6 +324,17 @@ sub onSeriesExtractRetrieved()
 
     m.currentSeasons = res.seasons
     m.viewMode = "seasons"
+
+    ' Esto es lo que faltaba: si se llegó acá desde el buscador (o desde
+    ' cualquier otra pantalla), hay que volver a mostrar la grilla y
+    ' esconder el buscador/portal — si no, la lista de temporadas se carga
+    ' "detrás" de la pantalla que estaba abierta y parece que se congeló.
+    m.portalGroup.visible = false
+    m.mainContent.visible = true
+    m.movieGrid.visible = true
+    m.countryGroup.visible = false
+    m.searchGroup.visible = false
+
     setSectionHeader(res.title, "film")
 
     content = CreateObject("roSGNode", "ContentNode")
@@ -337,6 +391,7 @@ sub playEpisode(epIdx as Integer)
     if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando episodio..."
 end sub
 
+
 sub onEpisodeExtractRetrieved()
     res = m.extractTask.response
     if res = invalid or res.status <> "success" then return
@@ -345,15 +400,36 @@ sub onEpisodeExtractRetrieved()
     if res.streams <> invalid
         for each s in res.streams
             url = ""
-            if s.proxyUrlMP4 <> invalid and s.proxyUrlMP4 <> ""
+            fmt = "hls"
+
+            ' Prioridad de campos según la nueva API
+            if s.proxyUrlHLS <> invalid and s.proxyUrlHLS <> ""
+                url = FixZonaApiUrl(s.proxyUrlHLS)
+                fmt = "hls"
+            else if s.proxyUrlMP4 <> invalid and s.proxyUrlMP4 <> ""
                 url = FixZonaApiUrl(s.proxyUrlMP4)
-            else if s.url <> invalid
+                fmt = "mp4"
+            else if s.url <> invalid and s.url <> ""
                 url = FixZonaApiUrl(s.url)
+            else if s.proxyUrl <> invalid and s.proxyUrl <> ""
+                url = FixZonaApiUrl(s.proxyUrl)
             end if
+
             if url <> ""
+                ' Solo re-detectamos el formato si el campo no nos lo dijo
+                ' ya con certeza (proxyUrlHLS/proxyUrlMP4). Para cualquier
+                ' otro caso (url / proxyUrl genérico), miramos el link REAL
+                ' de adentro del proxy en vez de confiar en el nombre del
+                ' endpoint envolvente (ver detectStreamFormat).
+                if s.proxyUrlHLS = invalid or s.proxyUrlHLS = ""
+                    if s.proxyUrlMP4 = invalid or s.proxyUrlMP4 = ""
+                        fmt = detectStreamFormat(url)
+                    end if
+                end if
+
                 streamItem = {}
                 streamItem.url = url
-                streamItem.format = "mp4"
+                streamItem.format = fmt
                 m.currentStreams.Push(streamItem)
             end if
         end for
@@ -363,16 +439,56 @@ sub onEpisodeExtractRetrieved()
         m.currentStreamIndex = 0
         tryPlayCurrentStream()
     else
-        m.videoStatusLabel.text = "No se encontraron streams para este episodio."
-        m.videoStatusBox.visible = true
+        showTemporaryStatus("No se encontraron streams para este episodio.")
     end if
 end sub
+
+' Detecta el formato real de un link de video, incluso cuando viene
+' envuelto en un proxy tipo ".../proxyvideo?url=<link real>&...".
+' Antes se asumía "hls" para CUALQUIER url que contuviera "proxyvideo",
+' pero ese mismo endpoint también sirve MP4 (proxyUrlMP4), así que había
+' que mirar el link de ADENTRO, no el nombre del endpoint de afuera.
+function detectStreamFormat(url as String) as String
+    lowerUrl = LCase(url)
+
+    ' ¿Es un proxy con un "url=" adentro? Miramos ESE valor primero.
+    idx = Instr(1, lowerUrl, "url=")
+    checkUrl = lowerUrl
+    if idx > 0
+        resto = Mid(lowerUrl, idx + 4)
+        ampIdx = Instr(1, resto, "&")
+        if ampIdx > 0
+            innerUrl = Left(resto, ampIdx - 1)
+        else
+            innerUrl = resto
+        end if
+        ' Por si el link interno viene url-encoded
+        innerUrl = innerUrl.Replace("%2e", ".")
+        innerUrl = innerUrl.Replace("%2f", "/")
+        if innerUrl <> "" then checkUrl = innerUrl
+    end if
+
+    if Instr(1, checkUrl, ".m3u8") > 0 or Instr(1, checkUrl, "/hls/") > 0
+        return "hls"
+    else if Instr(1, checkUrl, ".mp4") > 0
+        return "mp4"
+    end if
+
+    ' Si no pudimos determinar nada por la URL interna, recién ahí usamos
+    ' el nombre del endpoint como última pista (comportamiento anterior).
+    if Instr(1, lowerUrl, "proxyvideo") > 0
+        return "hls"
+    end if
+
+    return "hls"
+end function
 
 function FixZonaApiUrl(url as string) as string
     if url = invalid or url = "" then return ""
     u = url
     u = u.Replace("zonaapis.arcando.cloud//", "zonaapis.arcando.cloud/")
     u = u.Replace("arcando.cloud//", "arcando.cloud/")
+    u = u.Replace("apiprorescue.testaacc.workers.dev//", "apiprorescue.testaacc.workers.dev/")
     return u
 end function
 
@@ -389,7 +505,7 @@ sub loadCable()
     if m.navHintLabel <> invalid then m.navHintLabel.visible = false
     if m.pageBar <> invalid then m.pageBar.visible = false
     m.m3uTask = CreateObject("roSGNode", "M3uTask")
-    m.m3uTask.url = "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u"
+    m.m3uTask.url = m.config.cableM3u
     m.m3uTask.observeField("content", "onChannelsRetrieved")
     m.m3uTask.control = "RUN"
 end sub
@@ -409,14 +525,21 @@ sub showCountryList()
     for each c in m.countries
         item = content.CreateChild("ContentNode")
         item.title = c.name
-        item.description = "https://iptv-org.github.io/iptv/countries/" + c.code + ".m3u"
+        item.description = m.config.countriesIptvBase + c.code + ".m3u"
     end for
     m.countryList.content = content
     m.countryList.setFocus(true)
 end sub
 
 ' --- BUSCADOR (películas o series según sección) ---
-sub showSearch(mode = "movies" as String)
+sub showSearch(mode = "movies" as String, keepQuery = false as Boolean)
+    ' Solo actualizamos "a dónde volver" cuando es una entrada NUEVA al
+    ' buscador (no cuando keepQuery=true, que es volver desde una serie ya
+    ' vista - ahí el origen real es de más atrás, no lo pisamos).
+    if not keepQuery
+        m.searchReturnMode = m.viewMode
+    end if
+
     m.viewMode = "search"
     m.searchMode = mode
     m.portalGroup.visible = false
@@ -425,15 +548,22 @@ sub showSearch(mode = "movies" as String)
     m.countryGroup.visible = false
     m.searchGroup.visible = true
 
+    if not keepQuery
+        m.searchKeyboard.clearTrigger = true
+        m.searchResultsRawData = []
+        m.searchResultsGrid.content = CreateObject("roSGNode", "ContentNode")
+    end if
+
     if mode = "series"
         setSectionHeader("BUSCAR SERIES", "search")
         if m.allSeries.count() = 0
             m.movieCounterLabel.text = "Cargando catálogo de series..."
             m.searchSeriesCatalogPage = 1
             fetchSeriesCatalogPage(m.searchSeriesCatalogPage)
+        else if keepQuery
+            filterSearchResults()
         else
             m.movieCounterLabel.text = "Escribe para buscar (" + m.allSeries.count().toStr() + " series)"
-            filterSearchResults()
         end if
     else
         setSectionHeader("BUSCAR PELÍCULAS", "search")
@@ -441,9 +571,10 @@ sub showSearch(mode = "movies" as String)
             m.movieCounterLabel.text = "Cargando catálogo..."
             m.searchCatalogPage = 1
             fetchCatalogPage(m.searchCatalogPage)
+        else if keepQuery
+            filterSearchResults()
         else
             m.movieCounterLabel.text = "Escribe para buscar (" + m.allMovies.count().toStr() + " títulos)"
-            filterSearchResults()
         end if
     end if
 
@@ -452,7 +583,7 @@ end sub
 
 sub fetchCatalogPage(page as Integer)
     m.catalogTask = CreateObject("roSGNode", "ApiTask")
-    m.catalogTask.requestUrl = "https://zonaapp.ikkihkurogane.workers.dev/list?page=" + page.toStr()
+    m.catalogTask.requestUrl = m.config.moviesApiBase + "/list?page=" + page.toStr()
     m.catalogTask.observeField("response", "onCatalogPageRetrieved")
     m.catalogTask.control = "RUN"
 end sub
@@ -482,7 +613,7 @@ end sub
 
 sub fetchSeriesCatalogPage(page as Integer)
     m.catalogTask = CreateObject("roSGNode", "ApiTask")
-    m.catalogTask.requestUrl = "https://zonaapis.arcando.cloud/list?type=tvshows&page=" + page.toStr()
+    m.catalogTask.requestUrl = m.config.seriesApiBase + "/list?type=tvshows&page=" + page.toStr()
     m.catalogTask.observeField("response", "onSeriesCatalogPageRetrieved")
     m.catalogTask.control = "RUN"
 end sub
@@ -802,12 +933,30 @@ sub onVideoStateChange()
         print "=============================="
         m.videoPlayer.control = "stop"
         m.videoPlayer.visible = false
-        m.videoStatusLabel.text = "Este video no es compatible con Roku." + chr(10) + "Pulsa ATRÁS para volver."
-        m.videoStatusBox.visible = true
+        showTemporaryStatus("Este video no es compatible con Roku." + chr(10) + "Pulsa ATRÁS para volver.")
         if m.detailsScreen.visible then m.detailsScreen.setFocus(true)
     else if state = "playing" or state = "buffering"
         m.videoStatusBox.visible = false
     end if
+end sub
+
+
+sub showTemporaryStatus(msg as String)
+    m.videoStatusLabel.text = msg
+    m.videoStatusBox.visible = true
+
+    if m.statusTimer = invalid
+        m.statusTimer = CreateObject("roSGNode", "Timer")
+        m.statusTimer.repeat = false
+        m.statusTimer.duration = 4   ' 4 segundos
+        m.statusTimer.observeField("fire", "onStatusTimerFire")
+    end if
+    m.statusTimer.control = "stop"
+    m.statusTimer.control = "start"
+end sub
+
+sub onStatusTimerFire()
+    m.videoStatusBox.visible = false
 end sub
 
 sub playVideo(url as String, format = "hls" as String)
@@ -875,14 +1024,29 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
         end if
         if m.viewMode = "episodes"
             if m.pendingSeriesData <> invalid
-                showSeriesDetails(m.pendingSeriesData)
+                showSeriesDetails(m.pendingSeriesData, false)
             else
                 loadSeries(m.currentPage)
             end if
             return true
         end if
         if m.viewMode = "seasons"
-            loadSeries(m.currentPage)
+            if m.seriesEnteredFromSearch = true
+                m.seriesEnteredFromSearch = false
+                showSearch("series")
+            else
+                loadSeries(m.currentPage)
+            end if
+            return true
+        end if
+        if m.viewMode = "search"
+            if m.searchReturnMode = "movies"
+                loadMovies(m.currentPage)
+            else if m.searchReturnMode = "series"
+                loadSeries(m.currentPage)
+            else
+                showPortal()
+            end if
             return true
         end if
         if m.viewMode <> "portal"
@@ -919,9 +1083,17 @@ sub addStreamSource(sources as object, seenUrl as object, url as dynamic, fmt as
     if Instr(1, LCase(u), "cdn-cgi/challenge") > 0 then return
     if seenUrl.DoesExist(u) then return
     seenUrl.AddReplace(u, true)
+
     src = CreateObject("roAssociativeArray")
     src.url = u
-    if fmt <> invalid and fmt <> "" then src.type = fmt else src.type = "hls"
+
+    ' Detectar formato automáticamente si no viene especificado
+    if fmt <> invalid and fmt <> ""
+        src.type = fmt
+    else
+        src.type = detectStreamFormat(u)
+    end if
+
     sources.Push(src)
 end sub
 
@@ -975,7 +1147,7 @@ function UrlEncode(s as string) as string
             out = out + "%20"
         else
             h = StrI(a, 16).Trim()
-            if Left(h, 1) = "&" then h = Mid(h, 2) ' por si StrI deja basura en algunos firmwares
+            if Left(h, 1) = "&" then h = Mid(h, 2)
             if Len(h) = 1 then h = "0" + h
             out = out + "%" + UCase(h)
         end if
@@ -990,11 +1162,16 @@ function proxyImageUrl(url as string) as string
     u = url
     u = u.Replace("zonaapis.arcando.cloud//", "zonaapis.arcando.cloud/")
     u = u.Replace("arcando.cloud//", "arcando.cloud/")
+    u = u.Replace("apiprorescue.testaacc.workers.dev//", "apiprorescue.testaacc.workers.dev/")
 
     ' Ya es un proxy → no tocar
     if Instr(1, LCase(u), "zonaapis.arcando.cloud/proxy") > 0 then return u
     if Instr(1, LCase(u), "workers.dev/proxy") > 0 then return u
 
-    ' NO usar roUrlTransfer aquí (falla en hilo RENDER)
-    return "https://zonaapp.ikkihkurogane.workers.dev/proxy?url=" + UrlEncode(u)
+    base = "https://zonaapp.ikkihkurogane.workers.dev"
+    if m.config <> invalid and m.config.imageProxyBase <> invalid and m.config.imageProxyBase <> ""
+        base = m.config.imageProxyBase
+    end if
+
+    return base + "/proxy?url=" + UrlEncode(u)
 end function
