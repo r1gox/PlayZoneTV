@@ -109,8 +109,8 @@ sub init()
 
     ' --- CONFIG REMOTO (URLs) ---
     m.config = {
-        moviesApiBase: "https://zonaapp.ikkihkurogane.workers.dev",
-        seriesApiBase: "https://apiprorescue.testaacc.workers.dev",
+        moviesApiUrl: "https://zonaapp.ikkihkurogane.workers.dev/list?page=",
+        seriesApiUrl: "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page=",
         imageProxyBase: "https://zonaapp.ikkihkurogane.workers.dev",
         cableM3u: "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u",
         countriesIptvBase: "https://iptv-org.github.io/iptv/countries/"
@@ -154,8 +154,8 @@ sub onConfigRetrieved()
     res = m.configTask.response
     if res = invalid then return
 
-    if res.moviesApiBase <> invalid and res.moviesApiBase <> "" then m.config.moviesApiBase = res.moviesApiBase
-    if res.seriesApiBase <> invalid and res.seriesApiBase <> "" then m.config.seriesApiBase = res.seriesApiBase
+    if res.moviesApiUrl <> invalid and res.moviesApiUrl <> "" then m.config.moviesApiUrl = res.moviesApiUrl
+    if res.seriesApiUrl <> invalid and res.seriesApiUrl <> "" then m.config.seriesApiUrl = res.seriesApiUrl
     if res.imageProxyBase <> invalid and res.imageProxyBase <> "" then m.config.imageProxyBase = res.imageProxyBase
     if res.cableM3u <> invalid and res.cableM3u <> "" then m.config.cableM3u = res.cableM3u
     if res.countriesIptvBase <> invalid and res.countriesIptvBase <> "" then m.config.countriesIptvBase = res.countriesIptvBase
@@ -210,7 +210,7 @@ sub loadMovies(page as Integer)
     if m.navHintLabel <> invalid then m.navHintLabel.visible = true
     if m.pageBar <> invalid then m.pageBar.visible = true
     m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.requestUrl = m.config.moviesApiBase + "/list?page=" + page.toStr()
+    m.apiTask.requestUrl = m.config.moviesApiUrl + page.toStr()
     m.apiTask.observeField("response", "onMoviesRetrieved")
     m.apiTask.control = "RUN"
 end sub
@@ -249,7 +249,7 @@ sub loadSeries(page as Integer)
     if m.navHintLabel <> invalid then m.navHintLabel.visible = true
     if m.pageBar <> invalid then m.pageBar.visible = true
     m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.requestUrl = m.config.seriesApiBase + "/list?type=tvshows&page=" + page.toStr()
+    m.apiTask.requestUrl = m.config.seriesApiUrl + page.toStr()
     m.apiTask.observeField("response", "onSeriesRetrieved")
     m.apiTask.control = "RUN"
 end sub
@@ -583,7 +583,7 @@ end sub
 
 sub fetchCatalogPage(page as Integer)
     m.catalogTask = CreateObject("roSGNode", "ApiTask")
-    m.catalogTask.requestUrl = m.config.moviesApiBase + "/list?page=" + page.toStr()
+    m.catalogTask.requestUrl = m.config.moviesApiUrl + page.toStr()
     m.catalogTask.observeField("response", "onCatalogPageRetrieved")
     m.catalogTask.control = "RUN"
 end sub
@@ -613,7 +613,7 @@ end sub
 
 sub fetchSeriesCatalogPage(page as Integer)
     m.catalogTask = CreateObject("roSGNode", "ApiTask")
-    m.catalogTask.requestUrl = m.config.seriesApiBase + "/list?type=tvshows&page=" + page.toStr()
+    m.catalogTask.requestUrl = m.config.seriesApiUrl + page.toStr()
     m.catalogTask.observeField("response", "onSeriesCatalogPageRetrieved")
     m.catalogTask.control = "RUN"
 end sub
@@ -766,13 +766,33 @@ sub onExtractRetrieved()
         if res.rating <> invalid then data.rating = res.rating
         if res.genres <> invalid then data.genres = res.genres
         if res.poster <> invalid then data.image = res.poster
+
         data.sources = []
         seenUrl = CreateObject("roAssociativeArray")
+
         if res.streams <> invalid
             for each s in res.streams
-                addStreamSource(data.sources, seenUrl, s.url, s.type)
+                ' API ikki: url + type
+                if s.url <> invalid and s.url <> ""
+                    addStreamSource(data.sources, seenUrl, FixZonaApiUrl(s.url), s.type)
+                end if
+
+                ' API apiprorescue: proxy → sacar el link real
+                if s.proxyUrlMP4 <> invalid and s.proxyUrlMP4 <> ""
+                    mp4 = unwrapProxyVideoUrl(FixZonaApiUrl(s.proxyUrlMP4))
+                    addStreamSource(data.sources, seenUrl, mp4, "mp4")
+                end if
+                if s.proxyUrlHLS <> invalid and s.proxyUrlHLS <> ""
+                    hls = unwrapProxyVideoUrl(FixZonaApiUrl(s.proxyUrlHLS))
+                    addStreamSource(data.sources, seenUrl, hls, "hls")
+                end if
+                if s.proxyUrl <> invalid and s.proxyUrl <> ""
+                    p = unwrapProxyVideoUrl(FixZonaApiUrl(s.proxyUrl))
+                    addStreamSource(data.sources, seenUrl, p, invalid)
+                end if
             end for
         end if
+
         if res.resolutionTrace <> invalid
             for each t in res.resolutionTrace
                 if t.finalCdnUrl <> invalid then addStreamSource(data.sources, seenUrl, t.finalCdnUrl, "hls")
@@ -1096,6 +1116,38 @@ sub addStreamSource(sources as object, seenUrl as object, url as dynamic, fmt as
 
     sources.Push(src)
 end sub
+
+
+function unwrapProxyVideoUrl(url as String) as String
+    if url = invalid or url = "" then return ""
+    u = url
+    lower = LCase(u)
+
+    ' Solo si es proxyvideo / proxy
+    if Instr(1, lower, "proxyvideo") = 0 and Instr(1, lower, "proxy?url=") = 0
+        return u
+    end if
+
+    idx = Instr(1, lower, "url=")
+    if idx = 0 then return u
+
+    resto = Mid(u, idx + 4)
+    ' Cortar en &referer= u otros params
+    amp = Instr(1, resto, "&")
+    if amp > 0 then resto = Left(resto, amp - 1)
+
+    ' Decodificar lo básico
+    resto = resto.Replace("%3A", ":")
+    resto = resto.Replace("%2F", "/")
+    resto = resto.Replace("%3a", ":")
+    resto = resto.Replace("%2f", "/")
+    resto = resto.Replace("%3F", "?")
+    resto = resto.Replace("%3D", "=")
+    resto = resto.Replace("%26", "&")
+
+    if Left(resto, 4) = "http" then return resto
+    return u
+end function
 
 function flattenMovieList(res as object) as object
     list = CreateObject("roArray", 0, true)
