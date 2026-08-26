@@ -2,6 +2,7 @@
   "moviesApiUrl": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page=",
   "seriesApiUrl": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page=",
   "doramasApiUrl": "https://pelisplushd.tvymas.workers.dev/doramas?page=",
+  "animesApiUrl": "https://pelisplushd.tvymas.workers.dev/animes?page=",
   
   "imageProxyBase": "https://apiprorescue.testaacc.workers.dev",
 
