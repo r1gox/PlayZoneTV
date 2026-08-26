@@ -148,9 +148,9 @@ sub onContentChange()
         ' Ejemplo: 720 HD / 1080p HD
         ' ==========================================
 
-        if content.quality <> invalid and content.quality <> ""
+        if content.qualityText <> invalid and content.qualityText <> ""
 
-            quality = content.quality.ToStr().Trim()
+            quality = content.qualityText.ToStr().Trim()
 
             if quality <> ""
 
@@ -168,6 +168,7 @@ sub onContentChange()
             m.qualityBox.visible = false
 
         end if
+
 
 
         ' MANTENER FLUJO ACTUAL

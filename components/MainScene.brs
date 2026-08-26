@@ -821,13 +821,13 @@ sub onExtractRetrieved()
     data = m.pendingMovieData
     if data = invalid then data = {}
     if res <> invalid and res.status = "success"
-        if res.title <> invalid then data.title = res.title
-        if res.description <> invalid then data.description = res.description
-        if res.rating <> invalid then data.rating = res.rating
-        if res.genres <> invalid then data.genres = res.genres
-        if res.year <> invalid then data.year = res.year
-        if res.quality <> invalid then data.quality = res.quality
-        if res.poster <> invalid then data.image = res.poster
+        if res.title <> invalid and res.title <> "" then data.title = res.title
+        if res.description <> invalid and res.description <> "" then data.description = res.description
+        if res.rating <> invalid and res.rating <> "" then data.rating = res.rating
+        if res.genres <> invalid and res.genres.count() > 0 then data.genres = res.genres
+        if res.year <> invalid and res.year <> "" then data.year = res.year
+        if res.quality <> invalid and res.quality <> "" then data.quality = res.quality
+        if res.poster <> invalid and res.poster <> "" then data.image = res.poster
 
         data.sources = []
         seenUrl = CreateObject("roAssociativeArray")
@@ -913,29 +913,18 @@ sub openDetailsWithData(data as object)
         qualityText = data.quality.ToStr().Trim()
 
         if qualityText <> ""
-            detailsContent.quality = qualityText
-
-            ' La calidad también aparece al final de la sinopsis
-            if detailsContent.description <> ""
-                detailsContent.description = detailsContent.description + " | " + qualityText
-            else
-                detailsContent.description = qualityText
-            end if
-
+            detailsContent.qualityText = qualityText
         else
-            detailsContent.quality = "Null"
+            detailsContent.qualityText = "Null"
         end if
 
     else
 
-        detailsContent.quality = "Null"
-
-        ' Si no hay calidad, mostrar Null al final de la sinopsis
-        if detailsContent.description <> ""
-            detailsContent.description = detailsContent.description + " | Null"
-        end if
+        detailsContent.qualityText = "Null"
 
     end if
+
+
 
 
     ' GENEROS
