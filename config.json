@@ -6,6 +6,14 @@
   "moviesApiUrl5": "https://apiprorescue.tvymas.workers.dev/list?type=movies&page=",
   "moviesApiUrl6": "https://lamoviebot.tvymas.workers.dev/movies?page=",
 
+
+  "seriesApiUrl1": "https://zonaapis.arcando.cloud/list?type=tvshows&page=",
+  "seriesApiUrl2": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page=",
+  "seriesApiUrl3": "https://zonaapp.ikkihkurogane.workers.dev/list?page=",
+  "seriesApiUrl4": "https://pelisplushd.tvymas.workers.dev/series?page=",
+  "seriesApiUrl5": "https://apiprorescue.tvymas.workers.dev/list?type=tvshows&page=",
+  "seriesApiUrl6": "https://lamoviebot.tvymas.workers.dev/series?page="
+
   "seriesApiUrl": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page=",
   "doramasApiUrl": "https://pelisplushd.tvymas.workers.dev/doramas?page=",
   "animesApiUrl": "https://pelisplushd.tvymas.workers.dev/animes?page=",
