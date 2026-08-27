@@ -30,12 +30,12 @@
       <Label id="languagesLabel" size="22" color="0x7F5AF0FF" bold="true" />
       <Label id="descriptionLabel" width="720" height="220" size="22" wrap="true" color="0xCCCCCCFF" lineSpacing="8" />
 
-      <LayoutGroup layoutDirection="horiz" itemSpacing="[48, 0]" translation="[60, 0]">
+      <LayoutGroup layoutDirection="horiz" itemSpacing="[80, 0]" translation="[40, 0]">
         <Group id="playButton" focusable="true">
             <Rectangle id="playBg" width="300" height="60" color="0x7F5AF0FF" />
             <Label id="playLabel" width="300" height="60" text="REPRODUCIR" size="24" bold="true" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
         </Group>
-        <!-- Espacio + estrella favoritos -->
+        <Rectangle width="40" height="10" color="0x00000000" />
         <Group id="favButton" focusable="true">
             <Rectangle id="favBg" width="100" height="60" color="0x333333FF" />
             <Label id="favLabel" width="100" height="60" text="☆" size="36" bold="true" color="0xCCCCCCCC" horizAlign="center" vertAlign="center" />

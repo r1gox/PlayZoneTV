@@ -494,7 +494,7 @@ sub playEpisode(epIdx as Integer)
     m.extractTask.requestUrl = extractUrl
     m.extractTask.observeField("response", "onEpisodeExtractRetrieved")
     m.extractTask.control = "RUN"
-    if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando episodio..."
+    showCenteredLoading("Cargando episodio...")
 end sub
 
 
@@ -898,79 +898,102 @@ sub playDoramaEpisode(epIdx as Integer)
     m.extractTask.requestUrl = ep.extractUrl
     m.extractTask.observeField("response", "onDoramaEpisodeRetrieved")
     m.extractTask.control = "RUN"
-    if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando episodio..."
+    showCenteredLoading("Cargando episodio...")
 end sub
 
 sub onDoramaEpisodeRetrieved()
     res = m.extractTask.response
     if res = invalid then
+        hideCenteredLoading()
         showTemporaryStatus("No se pudo cargar el episodio.")
         return
     end if
 
-    streamUrl = ""
+    ' Recoger TODOS los stream_url de todos los servidores
+    m.pendingStreamUrls = []
     if res.embeds <> invalid and res.embeds.video <> invalid
         for each emb in res.embeds.video
             if emb.stream_url <> invalid and emb.stream_url <> ""
-                streamUrl = emb.stream_url
-                exit for
+                m.pendingStreamUrls.Push(emb.stream_url)
             end if
         end for
     end if
 
-    if streamUrl = ""
-        showTemporaryStatus("No hay servidores para este episodio.")
+    if m.pendingStreamUrls.count() = 0
+        hideCenteredLoading()
+        showTemporaryStatus("No se encontro reproductor disponible.")
         return
     end if
 
+    m.currentStreams = []
+    m.pendingStreamUrlIndex = 0
+    showCenteredLoading("Resolviendo servidores...")
+    resolveNextDoramaStreamUrl()
+end sub
+
+sub resolveNextDoramaStreamUrl()
+    if m.pendingStreamUrls = invalid then return
+    if m.pendingStreamUrlIndex >= m.pendingStreamUrls.count()
+        ' Ya resolvimos todos los servidores: reproducir o avisar
+        if m.currentStreams <> invalid and m.currentStreams.count() > 0
+            m.currentStreamIndex = 0
+            tryPlayCurrentStream()
+        else
+            hideCenteredLoading()
+            m.videoPlayer.visible = false
+            showTemporaryStatus("No se encontro reproductor disponible.")
+        end if
+        return
+    end if
+
+    total = m.pendingStreamUrls.count()
+    idx = m.pendingStreamUrlIndex + 1
+    showCenteredLoading("Servidor " + idx.toStr() + " de " + total.toStr() + "...")
+    url = m.pendingStreamUrls[m.pendingStreamUrlIndex]
     m.streamResolveTask = CreateObject("roSGNode", "ApiTask")
-    m.streamResolveTask.requestUrl = streamUrl
+    m.streamResolveTask.requestUrl = url
     m.streamResolveTask.observeField("response", "onDoramaStreamResolved")
     m.streamResolveTask.control = "RUN"
 end sub
 
 sub onDoramaStreamResolved()
     res = m.streamResolveTask.response
-    if res = invalid then
-        showTemporaryStatus("No se pudo resolver el stream.")
-        return
+
+    if m.currentStreams = invalid then m.currentStreams = []
+
+    if res <> invalid
+        if res.qualities <> invalid
+            for each q in res.qualities
+                if q.proxy_url <> invalid and q.proxy_url <> ""
+                    streamItem = {}
+                    streamItem.url = q.proxy_url
+                    streamItem.format = "hls"
+                    m.currentStreams.Push(streamItem)
+                end if
+                if q.url <> invalid and q.url <> ""
+                    streamItem = {}
+                    streamItem.url = q.url
+                    streamItem.format = "hls"
+                    m.currentStreams.Push(streamItem)
+                end if
+            end for
+        end if
+
+        if res.videos <> invalid and res.videos.hls <> invalid
+            for each h in res.videos.hls
+                if h <> invalid and h <> ""
+                    streamItem = {}
+                    streamItem.url = h
+                    streamItem.format = "hls"
+                    m.currentStreams.Push(streamItem)
+                end if
+            end for
+        end if
     end if
 
-    m.currentStreams = []
-
-    if res.qualities <> invalid
-        for each q in res.qualities
-            if q.proxy_url <> invalid and q.proxy_url <> ""
-                streamItem = {}
-                streamItem.url = q.proxy_url
-                streamItem.format = "hls"
-                m.currentStreams.Push(streamItem)
-            else if q.url <> invalid and q.url <> ""
-                streamItem = {}
-                streamItem.url = q.url
-                streamItem.format = "hls"
-                m.currentStreams.Push(streamItem)
-            end if
-        end for
-    end if
-
-    if m.currentStreams.count() = 0 and res.videos <> invalid and res.videos.hls <> invalid
-        for each h in res.videos.hls
-            if h <> invalid and h <> ""
-                streamItem = {}
-                streamItem.url = h
-                streamItem.format = "hls"
-                m.currentStreams.Push(streamItem)
-            end if
-        end for
-    end if
-
-    if m.currentStreams.count() > 0
-        m.currentStreamIndex = 0
-        tryPlayCurrentStream()
-    else
-        showTemporaryStatus("No se encontraron streams HLS.")
-    end if
+    ' Siguiente servidor embed
+    m.pendingStreamUrlIndex = m.pendingStreamUrlIndex + 1
+    resolveNextDoramaStreamUrl()
 end sub
 
 
@@ -1266,7 +1289,7 @@ sub playAnimeEpisode(epIdx as Integer)
     m.extractTask.requestUrl = ep.extractUrl
     m.extractTask.observeField("response", "onDoramaEpisodeRetrieved")
     m.extractTask.control = "RUN"
-    if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Cargando episodio..."
+    showCenteredLoading("Cargando episodio...")
 end sub
 
 ' --- CANALES / PAÍSES ---
@@ -1364,6 +1387,18 @@ sub showSearch(mode = "movies" as String, keepQuery = false as Boolean)
         else
             m.movieCounterLabel.text = "Escribe para buscar (" + m.allAnimes.count().toStr() + " animes)"
         end if
+    else if mode = "channels"
+        setSectionHeader("BUSCAR CANALES", "search")
+        n = 0
+        if m.channelsRawData <> invalid then n = m.channelsRawData.count()
+        m.movieCounterLabel.text = "Escribe para buscar (" + n.toStr() + " canales)"
+        if keepQuery then filterSearchResults() else filterSearchResults()
+    else if mode = "countries"
+        setSectionHeader("BUSCAR PAISES", "search")
+        n = 0
+        if m.countries <> invalid then n = m.countries.count()
+        m.movieCounterLabel.text = "Escribe para buscar (" + n.toStr() + " paises)"
+        filterSearchResults()
     else
         setSectionHeader("BUSCAR PELÍCULAS", "search")
         if m.allMovies.count() = 0
@@ -1568,6 +1603,23 @@ sub filterSearchResults()
         sourceList = m.allAnimes
         emptyMsg = "Cargando catálogo de animes..."
         typeLabel = "animes"
+    else if m.searchMode = "channels"
+        sourceList = m.channelsRawData
+        emptyMsg = "Entra a Canales TV primero"
+        typeLabel = "canales"
+    else if m.searchMode = "countries"
+        sourceList = []
+        if m.countries <> invalid
+            for each c in m.countries
+                row = {}
+                row.title = c.name
+                row.url = m.config.countriesIptvBase + c.code + ".m3u"
+                row.code = c.code
+                sourceList.Push(row)
+            end for
+        end if
+        emptyMsg = "Sin paises"
+        typeLabel = "paises"
     end if
 
     if sourceList = invalid or sourceList.count() = 0
@@ -1620,6 +1672,27 @@ sub onSearchItemSelected()
         showDoramaDetails(data)
     else if m.searchMode = "animes"
         showAnimeDetails(data)
+    else if m.searchMode = "channels"
+        u = ""
+        if data.url <> invalid then u = data.url
+        if u = "" and data.description <> invalid then u = data.description
+        if u <> "" then playVideo(u, "hls")
+    else if m.searchMode = "countries"
+        u = ""
+        if data.url <> invalid then u = data.url
+        if u = "" and data.code <> invalid then u = m.config.countriesIptvBase + data.code + ".m3u"
+        if u <> ""
+            m.viewMode = "channels"
+            m.searchGroup.visible = false
+            m.mainContent.visible = true
+            m.movieGrid.visible = true
+            if data.title <> invalid then setSectionHeader(data.title, "globe")
+            showCenteredLoading("Cargando canales...")
+            m.m3uTask = CreateObject("roSGNode", "M3uTask")
+            m.m3uTask.url = u
+            m.m3uTask.observeField("content", "onChannelsRetrieved")
+            m.m3uTask.control = "RUN"
+        end if
     else
         showMovieDetails(data)
     end if
@@ -1891,6 +1964,10 @@ sub onMenuItemSelected()
             showSearch("doramas")
         else if m.viewMode = "animes" or m.viewMode = "anime_seasons" or m.viewMode = "anime_episodes"
             showSearch("animes")
+        else if m.viewMode = "channels"
+            showSearch("channels")
+        else if m.viewMode = "countries"
+            showSearch("countries")
         else
             showSearch("movies")
         end if
@@ -1950,8 +2027,19 @@ sub onItemSelected()
 end sub
 
 sub onChannelsRetrieved()
+    hideCenteredLoading()
     if m.m3uTask.content <> invalid
         m.movieGrid.content = m.m3uTask.content
+        m.channelsRawData = []
+        cnt = m.m3uTask.content.getChildCount()
+        for i = 0 to cnt - 1
+            node = m.m3uTask.content.getChild(i)
+            row = {}
+            if node.title <> invalid then row.title = node.title else row.title = "Canal"
+            if node.description <> invalid then row.url = node.description
+            if node.hdPosterUrl <> invalid then row.image = node.hdPosterUrl
+            m.channelsRawData.Push(row)
+        end for
         m.movieGrid.setFocus(true)
     end if
 end sub
@@ -2116,9 +2204,10 @@ end sub
 
 sub tryPlayCurrentStream()
     if m.currentStreams = invalid or m.currentStreamIndex >= m.currentStreams.count()
-        m.videoStatusLabel.text = "No se pudo reproducir este video." + chr(10) + "Pulsa ATRÁS para volver."
-        m.videoStatusBox.visible = true
+        m.videoPlayer.control = "stop"
         m.videoPlayer.visible = false
+        m.videoStatusLabel.text = "No se encontro reproductor disponible."
+        m.videoStatusBox.visible = true
         return
     end if
     m.formatRetryDone = false
@@ -2145,8 +2234,21 @@ sub onVideoStateChange()
         print "=============================="
         m.videoPlayer.control = "stop"
         m.videoPlayer.visible = false
-        showTemporaryStatus("Este video no es compatible con Roku." + chr(10) + "Pulsa ATRÁS para volver.")
+
+        ' Probar siguiente link/servidor
+        if m.currentStreams <> invalid and m.currentStreamIndex <> invalid
+            m.currentStreamIndex = m.currentStreamIndex + 1
+            if m.currentStreamIndex < m.currentStreams.count()
+                tryPlayCurrentStream()
+                return
+            end if
+        end if
+
+        ' Ya no hay mas: mensaje centrado y salir
+        m.videoStatusLabel.text = "No se encontro reproductor disponible."
+        m.videoStatusBox.visible = true
         if m.detailsScreen.visible then m.detailsScreen.setFocus(true)
+        if m.movieGrid <> invalid and m.movieGrid.visible then m.movieGrid.setFocus(true)
     else if state = "buffering"
         m.videoStatusBox.visible = true
         if m.videoStatusLabel.text = "" or m.videoStatusLabel.text = invalid
@@ -2154,8 +2256,9 @@ sub onVideoStateChange()
         end if
     else if state = "playing"
         m.videoStatusBox.visible = false
+        ' Contar visto al reproducir (no hace falta llegar a creditos)
+        onPlaybackFinished()
     else if state = "finished"
-        ' Marcar visto al TERMINAR el video
         onPlaybackFinished()
     end if
 end sub
@@ -2421,6 +2524,10 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
                 loadDoramas(m.currentPage)
             else if m.searchReturnMode = "animes"
                 loadAnimes(m.currentPage)
+            else if m.searchReturnMode = "channels"
+                loadCable()
+            else if m.searchReturnMode = "countries"
+                showCountryList()
             else
                 showPortal()
             end if
