@@ -10,30 +10,51 @@
       sub init()
         m.poster = m.top.findNode("poster")
         m.title = m.top.findNode("title")
+        m.checkLabel = m.top.findNode("checkLabel")
         m.focusRect = m.top.findNode("focusRect")
         m.placeholder = m.top.findNode("placeholder")
         m.placeholderLabel = m.top.findNode("placeholderLabel")
-
+        m.watchedBadge = m.top.findNode("watchedBadge")
+        m.watchedLabel = m.top.findNode("watchedLabel")
         m.poster.observeField("loadStatus", "onPosterLoadStatus")
       end sub
 
       sub onContentChange()
         item = m.top.itemContent
         if item <> invalid
-          ' Siempre mostrar el gris primero
           m.placeholder.visible = true
           m.placeholderLabel.visible = true
           m.poster.visible = false
-
           m.poster.uri = item.hdPosterUrl
+
+          isW = false
+          if item.shortDescription <> invalid and item.shortDescription = "watched"
+            isW = true
+          end if
+
+          ' Palomita verde antes del título
+          if isW
+            m.checkLabel.text = "✓ "
+            m.checkLabel.visible = true
+            m.title.translation = [28, 258]
+            m.title.width = 153
+          else
+            m.checkLabel.text = ""
+            m.checkLabel.visible = false
+            m.title.translation = [4, 258]
+            m.title.width = 177
+          end if
           m.title.text = item.title
+
+          if m.watchedBadge <> invalid
+            m.watchedBadge.visible = isW
+            m.watchedLabel.visible = isW
+          end if
         end if
       end sub
 
       sub onPosterLoadStatus()
         status = m.poster.loadStatus
-        ' ready = imagen cargó bien
-        ' failed / loading / none = mantener gris
         if status = "ready"
           m.placeholder.visible = false
           m.placeholderLabel.visible = false
@@ -58,46 +79,15 @@
   </script>
 
   <children>
-    <!-- Borde de foco -->
     <Rectangle id="focusRect" width="185" height="300" color="0x7F5AF0FF" visible="false" />
-
-    <!-- Fondo gris (placeholder) -->
-    <Rectangle
-        id="placeholder"
-        translation="[4, 4]"
-        width="177"
-        height="250"
-        color="0x2A2A2AFF" />
-
-    <!-- Texto centrado mientras no hay imagen -->
-    <Label
-        id="placeholderLabel"
-        translation="[4, 110]"
-        width="177"
-        height="40"
-        text="Sin portada"
-        color="0x888888FF"
-        horizAlign="center"
-        vertAlign="center" />
-
-    <!-- Poster real (se muestra solo cuando carga) -->
-    <Poster
-        id="poster"
-        translation="[4, 4]"
-        width="177"
-        height="250"
-        loadDisplayMode="scaleToZoom"
-        visible="false" />
-
-    <!-- Título debajo -->
-    <Label
-        id="title"
-        translation="[4, 258]"
-        width="177"
-        height="38"
-        color="0xCCCCCCFF"
-        horizAlign="center"
-        wrap="true"
-        maxLines="2" />
+    <Rectangle id="placeholder" translation="[4, 4]" width="177" height="250" color="0x2A2A2AFF" />
+    <Label id="placeholderLabel" translation="[4, 110]" width="177" height="40" text="Sin portada" color="0x888888FF" horizAlign="center" vertAlign="center" />
+    <Poster id="poster" translation="[4, 4]" width="177" height="250" loadDisplayMode="scaleToFit" />
+    <Rectangle id="watchedBadge" translation="[135, 10]" width="36" height="36" color="0x22AA55FF" visible="false">
+      <Label id="watchedLabel" width="36" height="36" text="✓" size="20" bold="true" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
+    </Rectangle>
+    <!-- ✓ verde antes del nombre -->
+    <Label id="checkLabel" translation="[4, 258]" width="28" height="40" text="" size="18" bold="true" color="0x22CC55FF" horizAlign="left" vertAlign="center" visible="false" />
+    <Label id="title" translation="[4, 258]" width="177" height="40" size="16" color="0xCCCCCCFF" horizAlign="left" wrap="true" maxLines="2" />
   </children>
 </component>

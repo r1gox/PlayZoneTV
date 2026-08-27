@@ -1,150 +1,46 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <component name="DetailsScreen" extends="Group">
-
   <interface>
     <field id="content" type="node" onChange="onContentChange" />
     <field id="playPressed" type="bool" alwaysNotify="true" />
+    <field id="favPressed" type="bool" alwaysNotify="true" />
   </interface>
 
   <script type="text/brightscript" uri="pkg:/components/DetailsScreen.brs" />
 
   <children>
+    <Rectangle width="1280" height="720" color="0x050505FF" />
+    <Poster id="poster" translation="[80, 100]" width="350" height="525" loadDisplayMode="scaleToFit" />
 
-    <Rectangle
-        width="1280"
-        height="720"
-        color="0x050505FF" />
+    <LayoutGroup translation="[480, 100]" itemSpacing="[0, 16]" layoutDirection="vert">
+      <Label id="titleLabel" width="700" size="48" color="0xFFFFFFFF" bold="true" />
 
-    <Poster
-        id="poster"
-        translation="[80, 100]"
-        width="350"
-        height="525"
-        loadDisplayMode="scaleToFit" />
-
-    <LayoutGroup
-        translation="[480, 100]"
-        itemSpacing="[0, 18]"
-        layoutDirection="vert">
-
-      <!-- TITULO -->
-      <Label
-          id="titleLabel"
-          width="700"
-          size="50"
-          color="0xFFFFFFFF"
-          bold="true" />
-
-      <!-- RATING / AÑO / CALIDAD -->
-      <LayoutGroup
-          layoutDirection="horiz"
-          itemSpacing="[16, 0]">
-
-        <!-- RATING -->
-        <Rectangle
-            id="ratingBox"
-            width="160"
-            height="36"
-            color="0xE50914FF">
-
-          <Label
-              id="ratingLabel"
-              width="160"
-              height="36"
-              horizAlign="center"
-              vertAlign="center"
-              size="20"
-              color="0xFFFFFFFF"
-              bold="true" />
-
-        </Rectangle>
-
-        <!-- AÑO -->
-        <Rectangle
-            id="yearBox"
-            width="220"
-            height="36"
-            color="0xE5A50AFF">
-
-          <Label
-              id="yearLabel"
-              width="220"
-              height="36"
-              horizAlign="center"
-              vertAlign="center"
-              size="18"
-              color="0xFFFFFFFF"
-              bold="true" />
-
-        </Rectangle>
-
-        <!-- CALIDAD AZUL -->
-        <Rectangle
-            id="qualityBox"
-            width="160"
-            height="36"
-            color="0x1976D2FF">
-
-          <Label
-              id="qualityLabel"
-              width="160"
-              height="36"
-              horizAlign="center"
-              vertAlign="center"
-              size="18"
-              color="0xFFFFFFFF"
-              bold="true" />
-
-        </Rectangle>
-
+      <LayoutGroup layoutDirection="horiz" itemSpacing="[16, 0]">
+          <Rectangle id="ratingBox" width="160" height="36" color="0xE50914FF">
+              <Label id="ratingLabel" width="160" height="36" horizAlign="center" vertAlign="center" size="20" color="0xFFFFFFFF" bold="true" />
+          </Rectangle>
+          <Rectangle id="yearBox" width="220" height="36" color="0xE5A50AFF">
+              <Label id="yearLabel" width="220" height="36" horizAlign="center" vertAlign="center" size="18" color="0xFFFFFFFF" bold="true" />
+          </Rectangle>
+          <Rectangle id="qualityBox" width="160" height="36" color="0x333333FF">
+              <Label id="qualityLabel" width="160" height="36" horizAlign="center" vertAlign="center" size="18" color="0xFFFFFFFF" bold="true" />
+          </Rectangle>
       </LayoutGroup>
 
-      <!-- GENEROS -->
-      <Label
-          id="genresLabel"
-          width="710"
-          height="45"
-          size="22"
-          wrap="true"
-          color="0xFFFFFFFF" />
+      <Label id="languagesLabel" size="22" color="0x7F5AF0FF" bold="true" />
+      <Label id="descriptionLabel" width="720" height="220" size="22" wrap="true" color="0xCCCCCCFF" lineSpacing="8" />
 
-      <!-- SINOPSIS -->
-      <Label
-          id="descriptionLabel"
-          width="710"
-          height="250"
-          size="22"
-          wrap="true"
-          color="0xFFFFFFFF"
-          lineSpacing="8" />
-
-      <!-- BOTON REPRODUCIR -->
-      <Group
-          id="playButton"
-          focusable="true"
-          translation="[180, 0]">
-
-        <Rectangle
-            id="playBg"
-            width="320"
-            height="64"
-            color="0x7F5AF0FF" />
-
-        <Label
-            id="playLabel"
-            width="320"
-            height="64"
-            text="REPRODUCIR"
-            size="26"
-            bold="true"
-            color="0xFFFFFFFF"
-            horizAlign="center"
-            vertAlign="center" />
-
-      </Group>
-
+      <LayoutGroup layoutDirection="horiz" itemSpacing="[48, 0]" translation="[60, 0]">
+        <Group id="playButton" focusable="true">
+            <Rectangle id="playBg" width="300" height="60" color="0x7F5AF0FF" />
+            <Label id="playLabel" width="300" height="60" text="REPRODUCIR" size="24" bold="true" color="0xFFFFFFFF" horizAlign="center" vertAlign="center" />
+        </Group>
+        <!-- Espacio + estrella favoritos -->
+        <Group id="favButton" focusable="true">
+            <Rectangle id="favBg" width="100" height="60" color="0x333333FF" />
+            <Label id="favLabel" width="100" height="60" text="☆" size="36" bold="true" color="0xCCCCCCCC" horizAlign="center" vertAlign="center" />
+        </Group>
+      </LayoutGroup>
     </LayoutGroup>
-
   </children>
-
 </component>

@@ -11,12 +11,12 @@
 
         <MarkupGrid
             id="portalGrid"
-            translation="[140, 250]"
+            translation="[160, 175]"
             itemComponentName="PortalItem"
-            itemSize="[320, 180]"
-            itemSpacing="[20, 20]"
+            itemSize="[280, 140]"
+            itemSpacing="[30, 28]"
             numColumns="3"
-            numRows="2"
+            numRows="3"
             drawFocusFeedback="false" />
 
         <!-- Aviso de actualización disponible: aparece solo si hay una
@@ -92,7 +92,7 @@
             <Label text="Los resultados de la busqueda aparecen a la derecha del teclado, listos para abrir." size="20" color="0xFFFFFFFF" />
             <Label text="Volver: presiona ATRAS para cerrar el menu o regresar a la pantalla anterior." size="20" color="0xFFFFFFFF" />
             <Label text=" " size="10" color="0xFFFFFFFF" />
-            <Label text="Contacto y soporte - Telegram: @I_amr1x" size="22" color="0x7F5AF0FF" bold="true" />
+            <Label text="Contacto y soporte - Telegram: @I_am3301" size="22" color="0x7F5AF0FF" bold="true" />
         </LayoutGroup>
         <Button id="closeInstructionsBtn" text="ENTENDIDO" translation="[40, 540]" minWidth="200" showFocusFootprint="true" />
     </Group>
@@ -113,8 +113,8 @@
 
     <DetailsScreen id="detailsScreen" visible="false" />
     <Video id="videoPlayer" width="1280" height="720" visible="false" />
-    <Rectangle id="videoStatusBox" width="720" height="90" color="0x000000EE" translation="[280, 300]" visible="false">
-        <Label id="videoStatusLabel" width="720" height="90" horizAlign="center" vertAlign="center" size="24" color="0xFFFFFFFF" wrap="true" />
+    <Rectangle id="videoStatusBox" width="800" height="120" color="0x000000EE" translation="[240, 300]" visible="false">
+        <Label id="videoStatusLabel" width="800" height="120" horizAlign="center" vertAlign="center" size="26" color="0xFFFFFFFF" wrap="true" />
     </Rectangle>
   </children>
 </component>
