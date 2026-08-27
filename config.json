@@ -1,15 +1,15 @@
 {
-  "moviesApiUrl": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page=",
+  "moviesApiUrl": "https://zonaapis.arcando.cloud/list?type=movies&page=",
   "seriesApiUrl": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page=",
   "doramasApiUrl": "https://pelisplushd.tvymas.workers.dev/doramas?page=",
   "animesApiUrl": "https://pelisplushd.tvymas.workers.dev/animes?page=",
   
-  "imageProxyBase": "https://apiprorescue.testaacc.workers.dev",
+  "imageProxyBase": "https://zonaapis.arcando.cloud",
 
   "cableM3u": "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u",
   "countriesIptvBase": "https://iptv-org.github.io/iptv/countries/",
 
-  "moviesAndSeriesApiBackup": "https://apiprorescue.testaacc.workers.dev",
+  "moviesAndSeriesApiBackup": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page=",
   "moviesApiBackup": "https://zonaapp.ikkihkurogane.workers.dev",
   "seriesApiBackup": "https://zonaapis.arcando.cloud",
   "imageProxyBackup": "https://zonaapp.ikkihkurogane.workers.dev"
