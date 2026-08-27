@@ -1,16 +1,15 @@
 {
-  "moviesApiUrl": "https://zonaapis.arcando.cloud/list?type=movies&page=",
+  "moviesApiUrl1": "https://zonaapis.arcando.cloud/list?type=movies&page=",
+  "moviesApiUrl2": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page=",
+  "moviesApiUrl3": "https://zonaapp.ikkihkurogane.workers.dev/list?page=",
+  "moviesApiUrl4": "https://pelisplushd.tvymas.workers.dev/peliculas?page=",
+  "moviesApiUrl5": "https://apiprorescue.tvymas.workers.dev/list?type=movies&page=",
+  "moviesApiUrl6": "https://lamoviebot.tvymas.workers.dev/movies?page=",
+
   "seriesApiUrl": "https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page=",
   "doramasApiUrl": "https://pelisplushd.tvymas.workers.dev/doramas?page=",
   "animesApiUrl": "https://pelisplushd.tvymas.workers.dev/animes?page=",
-  
-  "imageProxyBase": "https://zonaapis.arcando.cloud",
 
   "cableM3u": "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u",
-  "countriesIptvBase": "https://iptv-org.github.io/iptv/countries/",
-
-  "moviesAndSeriesApiBackup": "https://apiprorescue.testaacc.workers.dev/list?type=movies&page=",
-  "moviesApiBackup": "https://zonaapp.ikkihkurogane.workers.dev",
-  "seriesApiBackup": "https://zonaapis.arcando.cloud",
-  "imageProxyBackup": "https://zonaapp.ikkihkurogane.workers.dev"
+  "countriesIptvBase": "https://iptv-org.github.io/iptv/countries/"
 }
