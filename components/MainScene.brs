@@ -45,6 +45,7 @@ sub init()
     addItem(menuContent, "< PÁG. ANTERIOR")
     addItem(menuContent, "BUSCAR")
     addItem(menuContent, "★ FAVORITOS")
+    addItem(menuContent, "CAMBIAR API")
     addItem(menuContent, "CERRAR")
     m.menuList.content = menuContent
 
@@ -130,6 +131,11 @@ sub init()
     m.searchTimer.observeField("fire", "onSearchTimerFire")
     m.searchFilterBusy = false
 
+    m.bufferTimer = CreateObject("roSGNode", "Timer")
+    m.bufferTimer.repeat = false
+    m.bufferTimer.duration = 12
+    m.bufferTimer.observeField("fire", "onBufferTimeout")
+
     ' --- CONFIG REMOTO (URLs) ---
     m.config = {
         moviesApiUrl: "https://zonaapp.ikkihkurogane.workers.dev/list?page=",
@@ -140,6 +146,9 @@ sub init()
         cableM3u: "https://raw.githubusercontent.com/NOVAPSNew/Novaps/main/tv.m3u",
         countriesIptvBase: "https://iptv-org.github.io/iptv/countries/"
     }
+    ' Lista de APIs de peliculas (fallback si una cae)
+    m.moviesApiList = []
+    m.moviesApiIndex = 0
     m.configLoaded = false
     loadRemoteConfig()
 
@@ -193,7 +202,150 @@ sub onConfigRetrieved()
     if res.cableM3u <> invalid and res.cableM3u <> "" then m.config.cableM3u = res.cableM3u
     if res.countriesIptvBase <> invalid and res.countriesIptvBase <> "" then m.config.countriesIptvBase = res.countriesIptvBase
 
+    buildMoviesApiList(res)
+    buildSeriesApiList(res)
+
     m.configLoaded = true
+end sub
+
+sub buildMoviesApiList(res as object)
+    m.moviesApiList = []
+    seen = CreateObject("roAssociativeArray")
+    keys = ["moviesApiUrl1", "moviesApiUrl2", "moviesApiUrl3", "moviesApiUrl4", "moviesApiUrl5", "moviesApiUrl6", "moviesApiUrl"]
+    for each k in keys
+        u = ""
+        if res <> invalid and res.DoesExist(k)
+            if res[k] <> invalid then u = res[k]
+        end if
+        if u = "" and k = "moviesApiUrl" and m.config <> invalid and m.config.moviesApiUrl <> invalid
+            u = m.config.moviesApiUrl
+        end if
+        u = normalizeMoviesListUrl(u)
+        if u <> "" and seen.DoesExist(u) = false
+            seen.AddReplace(u, true)
+            m.moviesApiList.Push(u)
+        end if
+    end for
+
+    ' Siempre incluir APIs que suelen tener catalogo (por si config solo tiene una vacia)
+    defaults = CreateObject("roArray", 0, true)
+    defaults.Push("https://pelisplushd.tvymas.workers.dev/peliculas?page=")
+    defaults.Push("https://lamoviebot.tvymas.workers.dev/movies?page=")
+    defaults.Push("https://zonaapis.arcando.cloud/list?type=movies&page=")
+    defaults.Push("https://apiprorescue.testaacc.workers.dev/list?type=movies&page=")
+    defaults.Push("https://apiprorescue.tvymas.workers.dev/list?type=movies&page=")
+    defaults.Push("https://zonaapp.ikkihkurogane.workers.dev/list?page=")
+    for each d in defaults
+        u = normalizeMoviesListUrl(d)
+        if u <> "" and seen.DoesExist(u) = false
+            seen.AddReplace(u, true)
+            m.moviesApiList.Push(u)
+        end if
+    end for
+    print "=== MOVIES API LIST ==="; m.moviesApiList.count()
+end sub
+
+function normalizeMoviesListUrl(u as String) as String
+    if u = invalid or u = "" then return ""
+    s = u.Trim()
+    ' Corregir typo type=movies?page=  -> type=movies&page=
+    s = s.Replace("type=movies?page=", "type=movies&page=")
+    s = s.Replace("type=movies?page", "type=movies&page")
+    ' Quitar page=1 fijo al final para poder poner el numero
+    if Right(s, 6) = "page=1" then s = Left(s, Len(s) - 1)
+    if Right(s, 7) = "page=1/" then s = Left(s, Len(s) - 2)
+    ' Si no trae page=, agregarlo
+    if Instr(1, LCase(s), "page=") = 0
+        if Instr(1, s, "?") > 0
+            s = s + "&page="
+        else
+            s = s + "?page="
+        end if
+    end if
+    return s
+end function
+
+sub buildSeriesApiList(res as object)
+    m.seriesApiList = []
+    seen = CreateObject("roAssociativeArray")
+    keys = ["seriesApiUrl1", "seriesApiUrl2", "seriesApiUrl3", "seriesApiUrl4", "seriesApiUrl5", "seriesApiUrl6", "seriesApiUrl"]
+    for each k in keys
+        u = ""
+        if res <> invalid and res.DoesExist(k)
+            if res[k] <> invalid then u = res[k]
+        end if
+        if u = "" and k = "seriesApiUrl" and m.config <> invalid and m.config.seriesApiUrl <> invalid
+            u = m.config.seriesApiUrl
+        end if
+        u = normalizeSeriesListUrl(u)
+        if u <> "" and seen.DoesExist(u) = false
+            seen.AddReplace(u, true)
+            m.seriesApiList.Push(u)
+        end if
+    end for
+
+    defaults = CreateObject("roArray", 0, true)
+    defaults.Push("https://zonaapis.arcando.cloud/list?type=tvshows&page=")
+    defaults.Push("https://apiprorescue.testaacc.workers.dev/list?type=tvshows&page=")
+    defaults.Push("https://apiprorescue.tvymas.workers.dev/list?type=tvshows&page=")
+    defaults.Push("https://pelisplushd.tvymas.workers.dev/series?page=")
+    defaults.Push("https://lamoviebot.tvymas.workers.dev/series?page=")
+    for each d in defaults
+        u = normalizeSeriesListUrl(d)
+        if u <> "" and seen.DoesExist(u) = false
+            seen.AddReplace(u, true)
+            m.seriesApiList.Push(u)
+        end if
+    end for
+    print "=== SERIES API LIST ==="; m.seriesApiList.count()
+end sub
+
+function normalizeSeriesListUrl(u as String) as String
+    if u = invalid or u = "" then return ""
+    s = u.Trim()
+    s = s.Replace("type=tvshows?page=", "type=tvshows&page=")
+    s = s.Replace("type=tvshows?page", "type=tvshows&page")
+    if Right(s, 6) = "page=1" then s = Left(s, Len(s) - 1)
+    if Instr(1, LCase(s), "page=") = 0
+        if Instr(1, s, "?") > 0
+            s = s + "&page="
+        else
+            s = s + "?page="
+        end if
+    end if
+    return s
+end function
+
+sub switchContentApi()
+    if m.viewMode = "movies"
+        if m.moviesApiList = invalid or m.moviesApiList.count() = 0 then buildMoviesApiList(invalid)
+        if m.moviesApiList.count() = 0 then return
+        m.moviesApiIndex = m.moviesApiIndex + 1
+        if m.moviesApiIndex >= m.moviesApiList.count() then m.moviesApiIndex = 0
+        m.activeMoviesApiUrl = m.moviesApiList[m.moviesApiIndex]
+        m.config.moviesApiUrl = m.activeMoviesApiUrl
+        print "=== CAMBIAR API PELICULAS ==="
+        print m.activeMoviesApiUrl
+        showTemporaryStatus("API peliculas " + (m.moviesApiIndex + 1).toStr() + "/" + m.moviesApiList.count().toStr())
+        loadMovies(1)
+        return
+    end if
+
+    if m.viewMode = "series" or m.viewMode = "seasons" or m.viewMode = "episodes"
+        if m.seriesApiList = invalid or m.seriesApiList.count() = 0 then buildSeriesApiList(invalid)
+        if m.seriesApiList.count() = 0 then return
+        m.seriesApiIndex = m.seriesApiIndex + 1
+        if m.seriesApiIndex >= m.seriesApiList.count() then m.seriesApiIndex = 0
+        m.activeSeriesApiUrl = m.seriesApiList[m.seriesApiIndex]
+        m.config.seriesApiUrl = m.activeSeriesApiUrl
+        print "=== CAMBIAR API SERIES ==="
+        print m.activeSeriesApiUrl
+        showTemporaryStatus("API series " + (m.seriesApiIndex + 1).toStr() + "/" + m.seriesApiList.count().toStr())
+        loadSeries(1)
+        return
+    end if
+
+    showTemporaryStatus("Entra a Peliculas o Series para cambiar API")
 end sub
 
 sub addItem(parent, title)
@@ -204,8 +356,14 @@ end sub
 ' --- PORTAL ---
 sub onPortalItemSelected()
     idx = m.portalGrid.itemSelected
-    if idx = 0 then loadMovies(1)
-    if idx = 1 then loadSeries(1)
+    if idx = 0
+        m.moviesApiIndex = 0
+        loadMovies(1)
+    end if
+    if idx = 1
+        m.seriesApiIndex = 0
+        loadSeries(1)
+    end if
     if idx = 2 then loadDoramas(1)
     if idx = 3 then loadAnimes(1)
     if idx = 4 then loadCable()
@@ -243,32 +401,121 @@ sub loadMovies(page as Integer)
     if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = true
     if m.navHintLabel <> invalid then m.navHintLabel.visible = true
     if m.pageBar <> invalid then m.pageBar.visible = true
+
+    if m.moviesApiList = invalid or m.moviesApiList.count() = 0
+        buildMoviesApiList(invalid)
+    end if
+    if m.moviesApiIndex = invalid then m.moviesApiIndex = 0
+    if m.moviesApiIndex >= m.moviesApiList.count() then m.moviesApiIndex = 0
+    fetchMoviesFromCurrentApi()
+end sub
+
+sub fetchMoviesFromCurrentApi()
+    if m.moviesApiList = invalid or m.moviesApiList.count() = 0
+        if m.movieCounterLabel <> invalid
+            m.movieCounterLabel.text = "Sin APIs de peliculas configuradas"
+        end if
+        return
+    end if
+    if m.moviesApiIndex >= m.moviesApiList.count()
+        if m.movieCounterLabel <> invalid
+            m.movieCounterLabel.text = "No se pudieron cargar peliculas"
+        end if
+        return
+    end if
+
+    base = m.moviesApiList[m.moviesApiIndex]
+    url = base + m.currentPage.toStr()
+    if m.movieCounterLabel <> invalid
+        n = m.moviesApiIndex + 1
+        t = m.moviesApiList.count()
+        m.movieCounterLabel.text = "Cargando API " + n.toStr() + "/" + t.toStr() + "..."
+    end if
     m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.requestUrl = m.config.moviesApiUrl + page.toStr()
+    m.apiTask.requestUrl = url
     m.apiTask.observeField("response", "onMoviesRetrieved")
     m.apiTask.control = "RUN"
 end sub
 
 sub onMoviesRetrieved()
     res = m.apiTask.response
-    if res <> invalid
-        list = flattenMovieList(res)
-        if res.totalPages <> invalid then m.totalMoviePages = res.totalPages
-        content = CreateObject("roSGNode", "ContentNode")
-        for each m_item in list
-            item = content.CreateChild("ContentNode")
-            item.title = m_item.title
-            item.hdPosterUrl = getPosterUrl(m_item)
-            applyWatchedFlag(item, makeContentId("movie", m_item))
-        end for
-        m.moviesRawData = list
-        m.movieGrid.content = content
-        m.movieGrid.setFocus(true)
-        m.lastMovieCounterText = "(" + content.getChildCount().toStr() + " películas)"
-        m.movieCounterLabel.text = m.lastMovieCounterText
-        m.pageIndicator.text = "Página " + m.currentPage.toStr() + " de " + m.totalMoviePages.toStr()
+    if m.moviesApiList <> invalid and m.moviesApiIndex < m.moviesApiList.count()
+        m.activeMoviesApiUrl = m.moviesApiList[m.moviesApiIndex]
     end if
+    print "=== MOVIES RETRIEVED ==="
+    if m.activeMoviesApiUrl <> invalid then print m.activeMoviesApiUrl
+    if res = invalid then print "response=INVALID" else print "response=OK"
+    list = flattenMovieList(res)
+    list = normalizeMovieItems(list)
+    print "movies count="; list.count()
+
+    if list.count() = 0
+        ' Esta API no dio peliculas: probar la siguiente
+        m.moviesApiIndex = m.moviesApiIndex + 1
+        if m.moviesApiIndex < m.moviesApiList.count()
+            fetchMoviesFromCurrentApi()
+            return
+        end if
+        if m.movieCounterLabel <> invalid
+            m.movieCounterLabel.text = "No se pudieron cargar peliculas"
+        end if
+        return
+    end if
+
+    ' Guardar cual API funciono + proxy de imagenes de ESA api
+    m.config.moviesApiUrl = m.activeMoviesApiUrl
+    imgBase = getActiveImageProxyBase()
+    if imgBase <> "" then m.config.imageProxyBase = imgBase
+
+    if res <> invalid
+        if res.totalPages <> invalid then m.totalMoviePages = res.totalPages
+        if res.total_pages <> invalid then m.totalMoviePages = res.total_pages
+    end if
+
+    content = CreateObject("roSGNode", "ContentNode")
+    for each m_item in list
+        item = content.CreateChild("ContentNode")
+        item.title = m_item.title
+        item.hdPosterUrl = getPosterUrl(m_item)
+        applyWatchedFlag(item, makeContentId("movie", m_item))
+    end for
+    m.moviesRawData = list
+    m.movieGrid.content = content
+    m.movieGrid.setFocus(true)
+    m.lastMovieCounterText = "(" + content.getChildCount().toStr() + " peliculas)"
+    m.movieCounterLabel.text = m.lastMovieCounterText
+    m.pageIndicator.text = "Pagina " + m.currentPage.toStr() + " de " + m.totalMoviePages.toStr()
 end sub
+
+function normalizeMovieItems(list as object) as object
+    out = CreateObject("roArray", 0, true)
+    if list = invalid then return out
+    for each m_item in list
+        if m_item <> invalid
+            if (m_item.extractUrl = invalid or m_item.extractUrl = "") and m_item.url <> invalid and m_item.url <> ""
+                m_item.extractUrl = m_item.url
+            end if
+            if (m_item.extractUrl = invalid or m_item.extractUrl = "") and m_item.slug <> invalid and m_item.slug <> ""
+                baseApi = ""
+                if m.activeMoviesApiUrl <> invalid then baseApi = LCase(m.activeMoviesApiUrl)
+                if Instr(1, baseApi, "pelisplushd") > 0
+                    m_item.extractUrl = "https://pelisplushd.tvymas.workers.dev/pelicula/" + m_item.slug
+                else if Instr(1, baseApi, "lamoviebot") > 0
+                    m_item.extractUrl = "https://lamoviebot.tvymas.workers.dev/pelicula/" + m_item.slug
+                end if
+            end if
+            styleUrl = ""
+            if m_item.extractUrl <> invalid then styleUrl = LCase(m_item.extractUrl)
+            if Instr(1, styleUrl, "/pelicula/") > 0 or Instr(1, styleUrl, "pelisplushd") > 0 or Instr(1, styleUrl, "lamoviebot") > 0
+                m_item.apiStyle = "pelisplus"
+            else
+                m_item.apiStyle = "zona"
+            end if
+            out.Push(m_item)
+        end if
+    end for
+    return out
+end function
 
 ' --- SERIES ---
 sub loadSeries(page as Integer)
@@ -283,34 +530,91 @@ sub loadSeries(page as Integer)
     if m.movieCounterLabel <> invalid then m.movieCounterLabel.visible = true
     if m.navHintLabel <> invalid then m.navHintLabel.visible = true
     if m.pageBar <> invalid then m.pageBar.visible = true
+
+    if m.seriesApiList = invalid or m.seriesApiList.count() = 0
+        buildSeriesApiList(invalid)
+    end if
+    ' Si ya eligio API con CAMBIAR API, respetar index; si no, empezar en 0
+    if m.seriesApiIndex = invalid then m.seriesApiIndex = 0
+    fetchSeriesFromCurrentApi()
+end sub
+
+sub fetchSeriesFromCurrentApi()
+    if m.seriesApiList = invalid or m.seriesApiList.count() = 0
+        if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "Sin APIs de series"
+        return
+    end if
+    if m.seriesApiIndex >= m.seriesApiList.count()
+        if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "No se pudieron cargar series"
+        return
+    end if
+
+    base = m.seriesApiList[m.seriesApiIndex]
+    url = base + m.currentPage.toStr()
+    print "=== SERIES API ==="
+    print url
+    if m.movieCounterLabel <> invalid
+        n = m.seriesApiIndex + 1
+        t = m.seriesApiList.count()
+        m.movieCounterLabel.text = "Cargando API series " + n.toStr() + "/" + t.toStr() + "..."
+    end if
     m.apiTask = CreateObject("roSGNode", "ApiTask")
-    m.apiTask.requestUrl = m.config.seriesApiUrl + page.toStr()
+    m.apiTask.requestUrl = url
     m.apiTask.observeField("response", "onSeriesRetrieved")
     m.apiTask.control = "RUN"
 end sub
 
 sub onSeriesRetrieved()
     res = m.apiTask.response
-    if res = invalid then return
-    if res.totalPages <> invalid then m.totalSeriesPages = res.totalPages else m.totalSeriesPages = 3
+    if m.seriesApiList <> invalid and m.seriesApiIndex < m.seriesApiList.count()
+        m.activeSeriesApiUrl = m.seriesApiList[m.seriesApiIndex]
+    end if
 
     list = []
-    if res.featured <> invalid
-        for each s in res.featured
-            list.Push(s)
-        end for
-    end if
-    if res.tvshows <> invalid
-        for each s in res.tvshows
-            list.Push(s)
-        end for
-    end if
-    if res.items <> invalid
-        for each s in res.items
-            list.Push(s)
-        end for
+    if res <> invalid
+        if res.totalPages <> invalid then m.totalSeriesPages = res.totalPages
+        if res.total_pages <> invalid then m.totalSeriesPages = res.total_pages
+        if res.featured <> invalid
+            for each s in res.featured
+                list.Push(s)
+            end for
+        end if
+        if res.tvshows <> invalid
+            for each s in res.tvshows
+                list.Push(s)
+            end for
+        end if
+        if res.series <> invalid
+            for each s in res.series
+                list.Push(s)
+            end for
+        end if
+        if res.items <> invalid
+            for each s in res.items
+                list.Push(s)
+            end for
+        end if
+        if res.movies <> invalid
+            for each s in res.movies
+                list.Push(s)
+            end for
+        end if
     end if
 
+    list = normalizeSeriesItems(list)
+    print "=== SERIES LIST COUNT ==="; list.count()
+
+    if list.count() = 0
+        m.seriesApiIndex = m.seriesApiIndex + 1
+        if m.seriesApiIndex < m.seriesApiList.count()
+            fetchSeriesFromCurrentApi()
+            return
+        end if
+        if m.movieCounterLabel <> invalid then m.movieCounterLabel.text = "No se pudieron cargar series"
+        return
+    end if
+
+    m.config.seriesApiUrl = m.activeSeriesApiUrl
     content = CreateObject("roSGNode", "ContentNode")
     m.seriesRawData = list
     for each s_item in list
@@ -327,33 +631,144 @@ sub onSeriesRetrieved()
     m.movieGrid.setFocus(true)
     m.lastMovieCounterText = "(" + content.getChildCount().toStr() + " series)"
     m.movieCounterLabel.text = m.lastMovieCounterText
-    m.pageIndicator.text = "Página " + m.currentPage.toStr() + " de " + m.totalSeriesPages.toStr()
+    if m.totalSeriesPages = invalid then m.totalSeriesPages = 1
+    m.pageIndicator.text = "Pagina " + m.currentPage.toStr() + " de " + m.totalSeriesPages.toStr()
 end sub
+
+function normalizeSeriesItems(list as object) as object
+    out = CreateObject("roArray", 0, true)
+    if list = invalid then return out
+    for each s_item in list
+        if s_item <> invalid
+            if (s_item.extractUrl = invalid or s_item.extractUrl = "") and s_item.url <> invalid and s_item.url <> ""
+                s_item.extractUrl = s_item.url
+            end if
+            if (s_item.extractUrl = invalid or s_item.extractUrl = "") and s_item.slug <> invalid and s_item.slug <> ""
+                baseApi = ""
+                if m.activeSeriesApiUrl <> invalid then baseApi = LCase(m.activeSeriesApiUrl)
+                if Instr(1, baseApi, "pelisplushd") > 0
+                    s_item.extractUrl = "https://pelisplushd.tvymas.workers.dev/serie/" + s_item.slug
+                else if Instr(1, baseApi, "lamoviebot") > 0
+                    s_item.extractUrl = "https://lamoviebot.tvymas.workers.dev/serie/" + s_item.slug
+                end if
+            end if
+            styleUrl = ""
+            if s_item.extractUrl <> invalid then styleUrl = LCase(s_item.extractUrl)
+            if Instr(1, styleUrl, "/serie/") > 0 or Instr(1, styleUrl, "pelisplushd") > 0 or Instr(1, styleUrl, "lamoviebot") > 0
+                if Instr(1, styleUrl, "extract") = 0
+                    s_item.apiStyle = "pelisplus"
+                else
+                    s_item.apiStyle = "zona"
+                end if
+            else
+                s_item.apiStyle = "zona"
+            end if
+            out.Push(s_item)
+        end if
+    end for
+    return out
+end function
 
 sub showSeriesDetails(data as object, isNewSelection = true as Boolean)
     if data = invalid then return
 
     extractUrl = ""
     if data.extractUrl <> invalid then extractUrl = FixZonaApiUrl(data.extractUrl)
+    if extractUrl = "" and data.url <> invalid then extractUrl = data.url
     if extractUrl = "" then return
 
-    ' Guardamos por dónde entró el usuario.
-    ' Esto permite conservar el comportamiento actual de búsqueda y navegación.
     if isNewSelection
         m.seriesEnteredFromSearch = (m.viewMode = "search")
         m.seriesDetailsReturnMode = "series"
     else
-        ' Cuando volvemos desde un episodio, conservamos el flujo anterior:
-        ' episodio -> ficha de serie -> atrás -> episodios.
         m.seriesDetailsReturnMode = "episodes"
     end if
 
     m.pendingSeriesData = data
+    m.seriesDetailsActive = true
+    m.doramaDetailsActive = false
+    m.animeDetailsActive = false
+    m.moviePlayMode = false
+
     m.extractTask = CreateObject("roSGNode", "ApiTask")
     m.extractTask.requestUrl = extractUrl
-    m.extractTask.observeField("response", "onSeriesExtractRetrieved")
+    if data.apiStyle <> invalid and data.apiStyle = "pelisplus"
+        print "=== SERIES DETAIL PELISPLUS ==="
+        print extractUrl
+        m.extractTask.observeField("response", "onPelisplusSeriesRetrieved")
+    else
+        print "=== SERIES DETAIL ZONA ==="
+        print extractUrl
+        m.extractTask.observeField("response", "onSeriesExtractRetrieved")
+    end if
     m.extractTask.control = "RUN"
     showCenteredLoading("Cargando detalles...")
+end sub
+
+sub onPelisplusSeriesRetrieved()
+    res = m.extractTask.response
+    print "=== PELISPLUS SERIES RESPONSE ==="
+    if res = invalid
+        print "res=invalid"
+        hideCenteredLoading()
+        showTemporaryStatus("No se pudieron cargar los detalles.")
+        return
+    end if
+
+    data = m.pendingSeriesData
+    if data = invalid then data = {}
+    if res.title <> invalid and res.title <> "" then data.title = res.title
+    if res.description <> invalid and res.description <> "" then data.description = res.description
+    if res.overview_tmdb <> invalid and (data.description = invalid or data.description = "")
+        data.description = res.overview_tmdb
+    end if
+    if res.year <> invalid then data.year = res.year
+    if res.rating <> invalid then data.rating = res.rating
+    if res.image <> invalid then data.image = res.image
+    if res.poster_tmdb <> invalid then data.image = res.poster_tmdb
+
+    seasons = []
+    temps = res.temporadas
+    if temps = invalid then temps = res.seasons
+    if temps <> invalid
+        for each t in temps
+            season = {}
+            if t.name <> invalid then season.title = t.name else season.title = "Temporada"
+            if t.season_number <> invalid then season.title = "Temporada " + t.season_number.toStr()
+            if t.name <> invalid and t.name <> "" then season.title = t.name
+            season.episodes = []
+            eps = t.episodios
+            if eps = invalid then eps = t.episodes
+            if eps <> invalid
+                for each e in eps
+                    ep = {}
+                    if e.episode_number <> invalid
+                        ep.numerando = "E" + e.episode_number.toStr()
+                    else
+                        ep.numerando = "E"
+                    end if
+                    if e.name <> invalid then ep.title = e.name else ep.title = "Episodio"
+                    if e.still <> invalid then ep.image = e.still
+                    if e.url <> invalid then ep.extractUrl = e.url
+                    season.episodes.Push(ep)
+                end for
+            end if
+            season.episodesCount = season.episodes.count()
+            seasons.Push(season)
+        end for
+    end if
+
+    print "=== SERIES SEASONS ==="; seasons.count()
+    if seasons.count() = 0
+        hideCenteredLoading()
+        showTemporaryStatus("Esta serie no tiene temporadas.")
+        return
+    end if
+
+    m.currentSeasons = seasons
+    m.pendingSeriesData = data
+    m.seriesDetailsActive = true
+    openDetailsWithData(data)
 end sub
 
 
@@ -486,13 +901,26 @@ sub playEpisode(epIdx as Integer)
     if m.currentEpisodes = invalid or epIdx >= m.currentEpisodes.count() then return
     ep = m.currentEpisodes[epIdx]
     extractUrl = FixZonaApiUrl(ep.extractUrl)
+    print "=== PLAY EPISODE ==="
+    print "idx="; epIdx
+    if ep.title <> invalid then print "title="; ep.title
+    print "extractUrl="; extractUrl
     if extractUrl = "" then return
     m.pendingEpisodeData = ep
     m.currentPlayId = makeContentId("ep", ep)
     m.currentPlayParentId = makeContentId("series", m.pendingSeriesData)
     m.extractTask = CreateObject("roSGNode", "ApiTask")
     m.extractTask.requestUrl = extractUrl
-    m.extractTask.observeField("response", "onEpisodeExtractRetrieved")
+    ' Si el extract es estilo pelisplus (/serie/../1/1), usar flujo dorama episode
+    if Instr(1, LCase(extractUrl), "/serie/") > 0 or Instr(1, LCase(extractUrl), "pelisplushd") > 0 or Instr(1, LCase(extractUrl), "lamoviebot") > 0
+        if Instr(1, LCase(extractUrl), "extract") = 0
+            m.extractTask.observeField("response", "onDoramaEpisodeRetrieved")
+        else
+            m.extractTask.observeField("response", "onEpisodeExtractRetrieved")
+        end if
+    else
+        m.extractTask.observeField("response", "onEpisodeExtractRetrieved")
+    end if
     m.extractTask.control = "RUN"
     showCenteredLoading("Cargando episodio...")
 end sub
@@ -500,10 +928,21 @@ end sub
 
 sub onEpisodeExtractRetrieved()
     res = m.extractTask.response
-    if res = invalid or res.status <> "success" then return
+    print "=== EPISODE EXTRACT ==="
+    if res = invalid
+        print "res=invalid"
+        return
+    end if
+    if res.status <> invalid then print "status="; res.status
+    if res = invalid or res.status <> "success"
+        print "extract FAILED"
+        showTemporaryStatus("No se encontro reproductor disponible.")
+        return
+    end if
 
     m.currentStreams = []
     if res.streams <> invalid
+        print "streams count="; res.streams.count()
         for each s in res.streams
             url = ""
             fmt = "hls"
@@ -903,7 +1342,9 @@ end sub
 
 sub onDoramaEpisodeRetrieved()
     res = m.extractTask.response
+    print "=== DORAMA/SERIES EP DETAIL ==="
     if res = invalid then
+        print "res=invalid"
         hideCenteredLoading()
         showTemporaryStatus("No se pudo cargar el episodio.")
         return
@@ -950,6 +1391,9 @@ sub resolveNextDoramaStreamUrl()
     idx = m.pendingStreamUrlIndex + 1
     showCenteredLoading("Servidor " + idx.toStr() + " de " + total.toStr() + "...")
     url = m.pendingStreamUrls[m.pendingStreamUrlIndex]
+    print "=== DORAMA/SERIES RESOLVE SERVER ==="
+    print "servidor "; idx; " de "; total
+    print url
     m.streamResolveTask = CreateObject("roSGNode", "ApiTask")
     m.streamResolveTask.requestUrl = url
     m.streamResolveTask.observeField("response", "onDoramaStreamResolved")
@@ -958,6 +1402,8 @@ end sub
 
 sub onDoramaStreamResolved()
     res = m.streamResolveTask.response
+    print "=== DORAMA/SERIES RESOLVE RESULT ==="
+    if res = invalid then print "INVALID response (timeout o error HTTP)" else print "OK response"
 
     if m.currentStreams = invalid then m.currentStreams = []
 
@@ -1701,15 +2147,70 @@ end sub
 ' --- DETALLE PELÍCULA ---
 sub showMovieDetails(data as object)
     if data = invalid then return
+
+    ' Asegurar que el boton REPRODUCIR no active flujo de serie/dorama/anime
+    m.seriesDetailsActive = false
+    m.doramaDetailsActive = false
+    m.animeDetailsActive = false
+    m.moviePlayMode = true
+
     if (data.sources = invalid or data.sources.count() = 0) and data.extractUrl <> invalid and data.extractUrl <> ""
         m.pendingMovieData = data
         m.extractTask = CreateObject("roSGNode", "ApiTask")
         m.extractTask.requestUrl = data.extractUrl
-        m.extractTask.observeField("response", "onExtractRetrieved")
+        if data.apiStyle <> invalid and data.apiStyle = "pelisplus"
+            m.extractTask.observeField("response", "onPelisplusMovieRetrieved")
+        else
+            m.extractTask.observeField("response", "onExtractRetrieved")
+        end if
         m.extractTask.control = "RUN"
         showCenteredLoading("Cargando detalles...")
         return
     end if
+    openDetailsWithData(data)
+end sub
+
+sub onPelisplusMovieRetrieved()
+    res = m.extractTask.response
+    data = m.pendingMovieData
+    if data = invalid then data = {}
+
+    if res = invalid
+        hideCenteredLoading()
+        showTemporaryStatus("No se pudo cargar la pelicula.")
+        return
+    end if
+
+    if res.title <> invalid and res.title <> "" then data.title = res.title
+    if res.description <> invalid and res.description <> "" then data.description = res.description
+    if res.overview_tmdb <> invalid and res.overview_tmdb <> "" and (data.description = invalid or data.description = "")
+        data.description = res.overview_tmdb
+    end if
+    if res.year <> invalid then data.year = res.year
+    if res.rating <> invalid
+        rt = type(res.rating)
+        if rt = "Integer" or rt = "roInteger" or rt = "Float" or rt = "roFloat" or rt = "Double" or rt = "roDouble"
+            data.rating = res.rating.ToStr()
+        else
+            data.rating = res.rating
+        end if
+    end if
+    if res.image <> invalid and res.image <> "" then data.image = res.image
+    if res.poster_tmdb <> invalid and res.poster_tmdb <> "" then data.image = res.poster_tmdb
+
+    data.sources = []
+    seenUrl = CreateObject("roAssociativeArray")
+    ' Guardar stream_urls de embeds para resolver al reproducir
+    data.pendingStreamUrls = []
+    if res.embeds <> invalid and res.embeds.video <> invalid
+        for each emb in res.embeds.video
+            if emb.stream_url <> invalid and emb.stream_url <> ""
+                data.pendingStreamUrls.Push(emb.stream_url)
+            end if
+        end for
+    end if
+
+    m.pendingMovieData = data
     openDetailsWithData(data)
 end sub
 
@@ -1973,6 +2474,8 @@ sub onMenuItemSelected()
         end if
     else if idx = 4
         showFavorites()
+    else if idx = 5
+        switchContentApi()
     end if
     toggleMenu(false)
 end sub
@@ -2188,17 +2691,106 @@ sub onPlayPressed()
 
     ' ============================================================
     ' PELÍCULA
-    ' Flujo original sin cambios.
     ' ============================================================
+    m.currentPlayId = makeContentId("movie", m.pendingMovieData)
+    m.currentPlayParentId = ""
+    m.moviePlayMode = true
+
+    ' pelisplus/lamovie: resolver UN servidor, reproducir; si falla, el siguiente
+    if m.pendingMovieData <> invalid and m.pendingMovieData.pendingStreamUrls <> invalid
+        if m.pendingMovieData.pendingStreamUrls.count() > 0
+            m.pendingStreamUrls = m.pendingMovieData.pendingStreamUrls
+            m.pendingStreamUrlIndex = 0
+            m.currentStreams = []
+            m.currentStreamIndex = 0
+            resolveAndPlayOneMovieServer()
+            return
+        end if
+    end if
+
     if m.currentStreams <> invalid and m.currentStreams.count() > 0
         m.currentStreamIndex = 0
-        m.currentPlayId = makeContentId("movie", m.pendingMovieData)
-        m.currentPlayParentId = ""
         tryPlayCurrentStream()
     else
-        m.videoStatusLabel.text = "No se pudo reproducir." + chr(10) + "Esta película no tiene servidores disponibles."
+        m.videoStatusLabel.text = "No se encontro reproductor disponible."
         m.videoStatusBox.visible = true
         m.videoPlayer.visible = false
+    end if
+end sub
+
+sub resolveAndPlayOneMovieServer()
+    if m.pendingStreamUrls = invalid or m.pendingStreamUrlIndex >= m.pendingStreamUrls.count()
+        hideCenteredLoading()
+        m.videoPlayer.control = "stop"
+        m.videoPlayer.visible = false
+        m.videoStatusLabel.text = "No se encontro reproductor disponible."
+        m.videoStatusBox.visible = true
+        if m.detailsScreen <> invalid and m.detailsScreen.visible
+            m.detailsScreen.setFocus(true)
+        end if
+        return
+    end if
+
+    total = m.pendingStreamUrls.count()
+    idx = m.pendingStreamUrlIndex + 1
+    showCenteredLoading("Servidor " + idx.toStr() + " de " + total.toStr() + "...")
+    url = m.pendingStreamUrls[m.pendingStreamUrlIndex]
+    print "=== RESOLVE STREAM_URL ==="
+    print "servidor "; idx; "/"; total
+    print url
+    m.streamResolveTask = CreateObject("roSGNode", "ApiTask")
+    m.streamResolveTask.requestUrl = url
+    m.streamResolveTask.observeField("response", "onMovieStreamResolved")
+    m.streamResolveTask.control = "RUN"
+end sub
+
+sub onMovieStreamResolved()
+    res = m.streamResolveTask.response
+    print "=== MOVIE/EP STREAM RESOLVED ==="
+    if res = invalid then print "resolve res=invalid" else print "resolve OK"
+    m.currentStreams = []
+    m.currentStreamIndex = 0
+
+    if res <> invalid
+        if res.qualities <> invalid
+            for each q in res.qualities
+                if q.proxy_url <> invalid and q.proxy_url <> ""
+                    streamItem = {}
+                    streamItem.url = q.proxy_url
+                    streamItem.format = "hls"
+                    m.currentStreams.Push(streamItem)
+                end if
+            end for
+            ' Si no hubo proxy_url, usar url directa
+            if m.currentStreams.count() = 0
+                for each q in res.qualities
+                    if q.url <> invalid and q.url <> ""
+                        streamItem = {}
+                        streamItem.url = q.url
+                        streamItem.format = "hls"
+                        m.currentStreams.Push(streamItem)
+                    end if
+                end for
+            end if
+        end if
+        if m.currentStreams.count() = 0 and res.videos <> invalid and res.videos.hls <> invalid
+            for each h in res.videos.hls
+                if h <> invalid and h <> ""
+                    streamItem = {}
+                    streamItem.url = h
+                    streamItem.format = "hls"
+                    m.currentStreams.Push(streamItem)
+                end if
+            end for
+        end if
+    end if
+
+    if m.currentStreams.count() > 0
+        tryPlayCurrentStream()
+    else
+        ' Este servidor no dio streams: siguiente embed
+        m.pendingStreamUrlIndex = m.pendingStreamUrlIndex + 1
+        resolveAndPlayOneMovieServer()
     end if
 end sub
 
@@ -2219,11 +2811,17 @@ sub tryPlayCurrentStream()
         m.videoStatusLabel.text = "Cargando video..."
     end if
     stream = m.currentStreams[m.currentStreamIndex]
+    print "=== TRY PLAY STREAM ==="
+    print "index="; m.currentStreamIndex; " de "; m.currentStreams.count()
+    if stream.url <> invalid then print "url="; stream.url
+    if stream.format <> invalid then print "format="; stream.format
     playVideo(stream.url, stream.format)
 end sub
 
 sub onVideoStateChange()
     state = m.videoPlayer.state
+    print "=== VIDEO STATE === "; state
+
     if state = "error"
         print "=== ERROR DE REPRODUCCION ==="
         if m.videoPlayer.content <> invalid
@@ -2232,34 +2830,94 @@ sub onVideoStateChange()
         print "errorCode: "; m.videoPlayer.errorCode
         print "errorMsg: "; m.videoPlayer.errorMsg
         print "=============================="
+        if m.bufferTimer <> invalid then m.bufferTimer.control = "stop"
         m.videoPlayer.control = "stop"
         m.videoPlayer.visible = false
+        advanceToNextStream("error")
+        return
 
-        ' Probar siguiente link/servidor
-        if m.currentStreams <> invalid and m.currentStreamIndex <> invalid
-            m.currentStreamIndex = m.currentStreamIndex + 1
-            if m.currentStreamIndex < m.currentStreams.count()
-                tryPlayCurrentStream()
-                return
+    else if state = "playing"
+        m.playGotRealPlayback = true
+        if m.bufferTimer <> invalid then m.bufferTimer.control = "stop"
+        m.videoStatusBox.visible = false
+        onPlaybackFinished()
+
+    else if state = "finished"
+        if m.bufferTimer <> invalid then m.bufferTimer.control = "stop"
+
+        ' Si terminó casi al instante = stream inválido / m3u8 vacío
+        elapsed = 999
+        if m.playStartSeconds <> invalid
+            nowSec = CreateObject("roDateTime").AsSeconds()
+            elapsed = nowSec - m.playStartSeconds
+        end if
+        print "=== FINISHED elapsed="; elapsed; " realPlay="; m.playGotRealPlayback
+
+        if m.playGotRealPlayback <> true or elapsed < 8
+            print "=== FINISHED demasiado rápido → siguiente stream ==="
+            m.videoPlayer.control = "stop"
+            m.videoPlayer.visible = false
+            advanceToNextStream("finished_fast")
+            return
+        end if
+
+        ' Reproducción real terminó bien
+        onPlaybackFinished()
+
+    else if state = "buffering"
+        ' Si ya habíamos tenido finished falso, no nos quedamos colgados:
+        ' el bufferTimer se encarga. Solo actualizamos UI.
+        m.videoStatusBox.visible = true
+        if m.videoStatusLabel <> invalid
+            if m.currentStreams <> invalid and m.currentStreams.count() > 1
+                m.videoStatusLabel.text = "Cargando servidor " + (m.currentStreamIndex + 1).toStr() + " de " + m.currentStreams.count().toStr() + "..."
+            else
+                m.videoStatusLabel.text = "Cargando video..."
             end if
         end if
+    end if
+end sub
 
-        ' Ya no hay mas: mensaje centrado y salir
-        m.videoStatusLabel.text = "No se encontro reproductor disponible."
-        m.videoStatusBox.visible = true
-        if m.detailsScreen.visible then m.detailsScreen.setFocus(true)
-        if m.movieGrid <> invalid and m.movieGrid.visible then m.movieGrid.setFocus(true)
-    else if state = "buffering"
-        m.videoStatusBox.visible = true
-        if m.videoStatusLabel.text = "" or m.videoStatusLabel.text = invalid
-            m.videoStatusLabel.text = "Cargando video..."
+
+sub advanceToNextStream(reason as String)
+    print "=== ADVANCE STREAM reason="; reason
+
+    if m.currentStreams <> invalid and m.currentStreamIndex <> invalid
+        m.currentStreamIndex = m.currentStreamIndex + 1
+        if m.currentStreamIndex < m.currentStreams.count()
+            tryPlayCurrentStream()
+            return
         end if
-    else if state = "playing"
-        m.videoStatusBox.visible = false
-        ' Contar visto al reproducir (no hace falta llegar a creditos)
-        onPlaybackFinished()
-    else if state = "finished"
-        onPlaybackFinished()
+    end if
+
+    ' Pelisplus: siguiente embed/servidor
+    if m.moviePlayMode = true and m.pendingStreamUrls <> invalid
+        m.pendingStreamUrlIndex = m.pendingStreamUrlIndex + 1
+        if m.pendingStreamUrlIndex < m.pendingStreamUrls.count()
+            resolveAndPlayOneMovieServer()
+            return
+        end if
+    end if
+
+    if m.videoStatusLabel <> invalid then m.videoStatusLabel.text = "No se encontro reproductor disponible."
+    if m.videoStatusBox <> invalid then m.videoStatusBox.visible = true
+    if m.detailsScreen <> invalid and m.detailsScreen.visible then m.detailsScreen.setFocus(true)
+    if m.movieGrid <> invalid and m.movieGrid.visible then m.movieGrid.setFocus(true)
+end sub
+
+
+sub onBufferTimeout()
+    if m.videoPlayer = invalid then return
+    state = m.videoPlayer.state
+    print "=== BUFFER TIMEOUT === state="; state
+
+    ' Si ya está reproduciendo de verdad, no cortar
+    if state = "playing" and m.playGotRealPlayback = true then return
+
+    if state = "buffering" or state = "none" or state = "opening" or state = "stopping" or state = "finished"
+        m.videoPlayer.control = "stop"
+        m.videoPlayer.visible = false
+        advanceToNextStream("buffer_timeout")
     end if
 end sub
 
@@ -2300,18 +2958,93 @@ sub onStatusTimerFire()
 end sub
 
 sub playVideo(url as String, format = "hls" as String)
+    if url = invalid or url = "" then return
+
     videoContent = CreateObject("roSGNode", "ContentNode")
     videoContent.url = url
+
     if format = "mp4"
         videoContent.streamFormat = "mp4"
     else
         videoContent.streamFormat = "hls"
     end if
+
+    referer = extractRefererFromUrl(url)
+    headers = []
+    headers.Push("User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+
+    if referer <> ""
+        headers.Push("Referer:" + referer)
+        origin = getOriginFromUrl(referer)
+        if origin <> "" then headers.Push("Origin:" + origin)
+    end if
+
+    videoContent.HttpHeaders = headers
+
+    print "=== PLAY VIDEO ==="
+    print "url="; url
+    print "format="; format
+    print "Referer="; referer
+    if referer <> "" then print "Origin="; getOriginFromUrl(referer)
+
     m.videoPlayer.content = videoContent
     m.videoPlayer.visible = true
     m.videoPlayer.control = "play"
     m.videoPlayer.setFocus(true)
+
+    ' Marca de tiempo para detectar finished "falso" (stream roto)
+    m.playStartSeconds = CreateObject("roDateTime").AsSeconds()
+    m.playGotRealPlayback = false
+
+    if m.bufferTimer <> invalid
+        m.bufferTimer.control = "stop"
+        m.bufferTimer.control = "start"
+    end if
 end sub
+
+function extractRefererFromUrl(url as String) as String
+    if url = invalid or url = "" then return ""
+
+    idx = Instr(1, LCase(url), "ref=")
+    if idx > 0
+        resto = Mid(url, idx + 4)
+        amp = Instr(1, resto, "&")
+        if amp > 0 then resto = Left(resto, amp - 1)
+        decoded = decodeUrlComponent(resto)
+        if decoded <> "" and (Left(decoded, 7) = "http://" or Left(decoded, 8) = "https://")
+            return decoded
+        end if
+    end if
+
+    return getOriginFromUrl(url) + "/"
+end function
+
+function getOriginFromUrl(url as String) as String
+    if url = invalid or url = "" then return ""
+    slashes = Instr(1, url, "://")
+    if slashes = 0 then return ""
+    scheme = Left(url, slashes - 1)
+    resto = Mid(url, slashes + 3)
+    slash2 = Instr(1, resto, "/")
+    if slash2 > 0 then resto = Left(resto, slash2 - 1)
+    return scheme + "://" + resto
+end function
+
+function decodeUrlComponent(s as String) as String
+    if s = invalid or s = "" then return ""
+    out = s
+    out = out.Replace("%3A", ":")
+    out = out.Replace("%3a", ":")
+    out = out.Replace("%2F", "/")
+    out = out.Replace("%2f", "/")
+    out = out.Replace("%3F", "?")
+    out = out.Replace("%3f", "?")
+    out = out.Replace("%3D", "=")
+    out = out.Replace("%3d", "=")
+    out = out.Replace("%26", "&")
+    out = out.Replace("%25", "%")
+    return out
+end function
 
 sub toggleMenu(open as Boolean)
     if open
@@ -2673,6 +3406,48 @@ function UrlEncode(s as string) as string
     return out
 end function
 
+function getUrlOrigin(apiUrl as String) as String
+    if apiUrl = invalid or apiUrl = "" then return ""
+    s = apiUrl.Trim()
+    ' https://host.tld/path... -> https://host.tld
+    if Left(LCase(s), 8) = "https://"
+        rest = Mid(s, 9)
+        slash = Instr(1, rest, "/")
+        if slash > 0 then return "https://" + Left(rest, slash - 1)
+        return "https://" + rest
+    else if Left(LCase(s), 7) = "http://"
+        rest = Mid(s, 8)
+        slash = Instr(1, rest, "/")
+        if slash > 0 then return "http://" + Left(rest, slash - 1)
+        return "http://" + rest
+    end if
+    return ""
+end function
+
+function getActiveImageProxyBase() as String
+    ' Prioridad: API de peliculas que SI respondio
+    api = ""
+    if m.activeMoviesApiUrl <> invalid and m.activeMoviesApiUrl <> ""
+        api = m.activeMoviesApiUrl
+    else if m.config <> invalid and m.config.moviesApiUrl <> invalid
+        api = m.config.moviesApiUrl
+    end if
+
+    origin = getUrlOrigin(api)
+    if origin <> ""
+        o = LCase(origin)
+        ' Estas APIs no suelen tener /proxy?url= : portadas directas (TMDB ya va directo)
+        if Instr(1, o, "pelisplushd") > 0 then return ""
+        if Instr(1, o, "lamoviebot") > 0 then return ""
+        return origin
+    end if
+
+    if m.config <> invalid and m.config.imageProxyBase <> invalid and m.config.imageProxyBase <> ""
+        return m.config.imageProxyBase
+    end if
+    return ""
+end function
+
 function proxyImageUrl(url as string) as string
     if url = invalid or url = "" then return ""
 
@@ -2687,20 +3462,18 @@ function proxyImageUrl(url as string) as string
     if Instr(1, lower, "/proxy?url=") > 0 then return u
     if Instr(1, lower, "workers.dev/proxy") > 0 then return u
 
-    ' TMDB y otros CDN públicos: Roku los carga directo (más rápido, sin proxy)
+    ' TMDB y otros CDN públicos: Roku los carga directo
     if Instr(1, lower, "image.tmdb.org") > 0 then return u
     if Instr(1, lower, "themoviedb.org") > 0 then return u
 
-    ' Reducir original de TMDB si viniera embebido raro
     if Instr(1, lower, "/original/") > 0 and Instr(1, lower, "tmdb") > 0
         u = u.Replace("/original/", "/w500/")
         return u
     end if
 
-    base = "https://zonaapp.ikkihkurogane.workers.dev"
-    if m.config <> invalid and m.config.imageProxyBase <> invalid and m.config.imageProxyBase <> ""
-        base = m.config.imageProxyBase
-    end if
+    ' Proxy = la misma API que dio el catalogo (si tiene)
+    base = getActiveImageProxyBase()
+    if base = "" then return u
 
     return base + "/proxy?url=" + UrlEncode(u)
 end function

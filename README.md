@@ -30,6 +30,8 @@ No está en la Roku Channel Store: se instala por **sideload** (modo desarrollad
 
 ## 🖼️ Capturas de pantalla
 
+> Sustituye las rutas por tus imágenes (por ejemplo en una carpeta `docs/screenshots/` del repo, o enlaces directos).
+
 ### 🏠 Menú principal (portal)
 
 ![Menú principal](docs/screenshots/menu.png)
@@ -70,7 +72,10 @@ No está en la Roku Channel Store: se instala por **sideload** (modo desarrollad
 
 Descarga el canal empaquetado desde MediaFire:
 
-> **🔗 [Descargar PlayZoneTV (ZIP)](https://www.mediafire.com/file/1jzgde3cx2hfpmt/PlayZoneTV.zip/file)** 
+> **🔗 [Descargar PlayZoneTV (ZIP)](https://www.mediafire.com/)**  
+> *(reemplaza este enlace por tu URL de MediaFire cuando lo subas)*
+
+El ZIP debe contener: `manifest`, `source/`, `components/`, `images/`.
 
 ---
 
@@ -153,7 +158,7 @@ Si un video no se puede reproducir en Roku, verás un mensaje y podrás volver c
 
 ## 📬 Contacto
 
-Dudas o soporte: **Telegram** [@I_amr1x](https://t.me/I_amr1x)
+Dudas o soporte: **Telegram** [@I_am3301](https://t.me/I_am3301)
 
 ---
 
